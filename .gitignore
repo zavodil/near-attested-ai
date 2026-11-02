@@ -5,3 +5,6 @@ dist/
 *.env
 *.local
 .DS_Store
+
+# The global gitignore of some machines ignores `test`; these are the page's tests.
+!test
