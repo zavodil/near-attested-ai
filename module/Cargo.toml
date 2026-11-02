@@ -1,0 +1,42 @@
+[package]
+name = "compliance-gateway"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "OutLayer project: a prompt nobody on the path can read, screened by a policy model, answered by a model in a NEAR AI TEE, returned with a receipt anyone can check"
+
+[[bin]]
+name = "compliance-gateway"
+path = "src/main.rs"
+
+[dependencies]
+# Input and output, and the `inbox` encryption key the enclave's own key pair
+# is derived from.
+outlayer = { version = "0.2.1", features = ["encryption-keys"] }
+serde = { version = "1.0", features = ["derive"] }
+# `raw_value`: Intel signs the exact bytes of `tcbInfo` and `enclaveIdentity`,
+# so they are carried as served, never re-serialised.
+serde_json = { version = "1.0", features = ["raw_value"] }
+# The only way out of the enclave (`wasi:http`); the manifest's allowlist
+# decides where to.
+wasi = "0.13"
+base64 = "0.22"
+hex = "0.4"
+sha2 = "0.10"
+getrandom = "0.2"
+# Sealing in both directions: `ecies` here, `eciesjs` in the browser — the pair
+# OutLayer's other modules run on.
+ecies = { version = "0.2", default-features = false, features = ["pure", "std"] }
+libsecp256k1 = "0.7"
+# EIP-191 recovery of the model's response signature.
+k256 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic"] }
+sha3 = { version = "0.10", default-features = false }
+# Intel TDX quote verification inside the enclave: the same crate the browser
+# runs compiled to WebAssembly, without its network client.
+dcap-qvl = { version = "0.3.12", default-features = false, features = ["std", "rustcrypto"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1

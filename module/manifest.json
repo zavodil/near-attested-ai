@@ -1,0 +1,22 @@
+{
+  "display": {
+    "name": "Attested AI — compliance gateway"
+  },
+  "operations": [
+    "enclave_key",
+    "ask"
+  ],
+  "capabilities": {
+    "network": [
+      "cloud-api.near.ai",
+      "api.trustedservices.intel.com",
+      "certificates.trustedservices.intel.com",
+      "nras.attestation.nvidia.com"
+    ]
+  },
+  "encryption_keys": [
+    {
+      "path": "inbox"
+    }
+  ]
+}
