@@ -54,12 +54,25 @@ export interface SecretsRef {
   profile: string;
 }
 
+/** `owner/profile, owner/profile` → rows, in that order. */
+export function parseRows(text: string): SecretsRef[] {
+  return text
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [account_id, profile] = part.split('/');
+      if (!account_id || !profile) throw new Error(`a row is owner/profile, not “${part}”`);
+      return { account_id, profile };
+    });
+}
+
 export async function runProject(
   network: Network,
   projectId: string,
   paymentKey: string,
   input: unknown,
-  secretsRef: SecretsRef | null,
+  rows: SecretsRef[],
   onStatus?: (status: string) => void,
 ): Promise<CallResult> {
   const [owner, name] = projectId.split('/');
@@ -71,7 +84,8 @@ export async function runProject(
       input,
       async: true,
       resource_limits: { max_execution_seconds: 150 },
-      ...(secretsRef ? { secrets_ref: secretsRef } : {}),
+      // One row as it always was; several in order, the first the company's.
+      ...(rows.length === 1 ? { secrets_ref: rows[0] } : rows.length > 1 ? { secrets_refs: rows } : {}),
     }),
   });
   const first = await readJson(started);

@@ -40,3 +40,13 @@ export const DEFAULT_NETWORK: NetworkId = import.meta.env.VITE_OUTLAYER_NETWORK 
 export const DEFAULT_PROJECT: string = import.meta.env.VITE_PROJECT_ID ?? '';
 export const DEFAULT_SECRETS_PROFILE: string = import.meta.env.VITE_SECRETS_PROFILE ?? 'default';
 export const SEALED_PAYMENT_KEY: string = import.meta.env.VITE_PAYMENT_KEY_SEALED ?? '';
+
+/**
+ * The secret rows a call names, `owner/profile` joined with `,`: the
+ * company's row (the NEAR AI key and `COMPLIANCE_CONFIG`) and the officers'
+ * rows. Empty: the visitor's own row, named by the payment key's owner and
+ * the profile above — personal mode.
+ */
+export const DEFAULT_ROWS: string = import.meta.env.VITE_SECRETS_ROWS ?? '';
+/** Personal mode on the page: `VITE_DEMO_MODE=0` hides it, and the page runs on the company's rows only. */
+export const DEMO_MODE: boolean = import.meta.env.VITE_DEMO_MODE !== '0';

@@ -161,23 +161,69 @@ function group(call: ModelCall, role: 'answer' | 'screening', steps: Step[], fac
 
 /** The policy as applied: its fingerprint, and what each rule decided. */
 export function verifyPolicy(screening: Screening): Step[] {
-  const fingerprint = sha256Hex(JSON.stringify(screening.policy));
-  return [
+  const steps: Step[] = [];
+  for (const pack of screening.packs) {
+    const fired = pack.outcomes.filter((o) => o.tripped);
+    steps.push(
+      (pack.verdict === 'passed' ? pass : warn)(
+        `${pack.id}@${pack.version}`,
+        `read from ${pack.registry} at block ${pack.block_height}, sha256 ${short(pack.sha256, 6)} · ${pack.outcomes.length} rule${
+          pack.outcomes.length === 1 ? '' : 's'
+        } by ${pack.model} → ${pack.verdict}`,
+      ),
+    );
+    for (const o of pack.outcomes) {
+      const recomputed = o.p_yes * 100 >= o.threshold;
+      steps.push(
+        recomputed !== o.tripped
+          ? fail(`Rule “${o.id}”`, 'the recorded decision does not follow from the probability and threshold')
+          : (o.tripped ? warn : pass)(
+              `Rule “${o.id}”${o.cite ? ` (${o.cite})` : ''}`,
+              `P(yes) ${percent(o.p_yes)} ${o.tripped ? '≥' : '<'} ${o.threshold}% → ${o.tripped ? o.action + 's' : 'passes'}`,
+            ),
+      );
+    }
+    void fired;
+  }
+  const strictest = screening.fired.map((f) => f.action).includes('block') ? 'blocked' : screening.fired.length ? 'escalated' : 'passed';
+  steps.push(
     check(
-      fingerprint === screening.policy_sha256,
-      'The policy is the one fingerprinted',
-      `policy sha256 ${short(fingerprint, 6)}`,
-      'the policy does not hash to its fingerprint',
+      strictest === screening.verdict,
+      'The verdict is the strictest fired action',
+      screening.verdict,
+      `the fired rules give ${strictest}, the receipt says ${screening.verdict}`,
     ),
-    ...screening.outcomes.map((o) => {
-      const rule = screening.policy.rules.find((r) => r.id === o.id);
-      const recomputed = rule ? o.p_yes * 100 >= rule.block_at : o.tripped;
-      return recomputed !== o.tripped
-        ? fail(`Rule “${o.id}”`, 'the recorded decision does not follow from the probability and threshold')
-        : (o.tripped ? warn : pass)(
-            `Rule “${o.id}”`,
-            `P(yes) ${percent(o.p_yes)} ${o.tripped ? '≥' : '<'} ${rule?.block_at ?? '?'}% → ${o.tripped ? 'blocks' : 'passes'}`,
-          );
-    }),
-  ];
+  );
+  return steps;
+}
+
+/** The pack as the chain holds it now: the same bytes, not withdrawn. */
+export async function verifyPackOnChain(rpc: string, pack: { id: string; version: number; sha256: string; registry: string }): Promise<Step> {
+  try {
+    const response = await fetch(rpc, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 'attested-ai',
+        method: 'query',
+        params: {
+          request_type: 'call_function',
+          finality: 'final',
+          account_id: pack.registry,
+          method_name: 'get_meta',
+          args_base64: btoa(JSON.stringify({ id: pack.id, version: pack.version })),
+        },
+      }),
+    });
+    const json = await response.json();
+    if (json.error || json.result?.error) return fail(`${pack.id}@${pack.version} on chain`, `RPC: ${JSON.stringify(json.error ?? json.result.error).slice(0, 160)}`);
+    const meta = JSON.parse(new TextDecoder().decode(new Uint8Array(json.result.result))) as { sha256: string; deprecated: boolean; publisher: string } | null;
+    if (!meta) return fail(`${pack.id}@${pack.version} on chain`, `${pack.registry} holds no such pack`);
+    if (meta.sha256 !== pack.sha256) return fail(`${pack.id}@${pack.version} on chain`, `the chain holds sha256 ${short(meta.sha256, 6)}, the receipt ${short(pack.sha256, 6)}`);
+    if (meta.deprecated) return warn(`${pack.id}@${pack.version} on chain`, `the same bytes, withdrawn since by ${meta.publisher}`);
+    return pass(`${pack.id}@${pack.version} on chain`, `${pack.registry} holds these bytes, published by ${meta.publisher}`);
+  } catch (e) {
+    return skip(`${pack.id}@${pack.version} on chain`, `the chain could not be asked: ${message(e)}`);
+  }
 }

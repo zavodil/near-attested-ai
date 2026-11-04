@@ -140,7 +140,7 @@ fn stream_error(e: StreamError) -> String {
 fn failed(host_name: &str, e: &ErrorCode) -> String {
     match e {
         ErrorCode::ConnectionTimeout | ErrorCode::ConnectionReadTimeout | ErrorCode::HttpResponseTimeout => format!(
-            "{host_name} did not answer in time ({e:?}): the platform cuts every outbound request at 30 s"
+            "{host_name} did not answer in time ({e:?}): the manifest gives each request to it 120 s (NEAR AI) or 30 s"
         ),
         _ => format!("{host_name} could not be reached: {e:?}"),
     }

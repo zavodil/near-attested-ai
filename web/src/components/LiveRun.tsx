@@ -8,7 +8,9 @@ interface Props {
   note?: string;
   startedAt: number;
   model: string;
-  screening: { model: string; rules: number } | null;
+  screening: { packs: number; company: string | null } | null;
+  /** Who the prompt waits for, during `await`. */
+  officer?: string;
 }
 
 interface Node {
@@ -25,17 +27,18 @@ interface Node {
  * So the enclave's part is shown as what it does, in order, not as progress
  * this page cannot see.
  */
-export function LiveRun({ stage, note, startedAt, model, screening }: Props) {
+export function LiveRun({ stage, note, startedAt, model, screening, officer }: Props) {
   const elapsed = useElapsed(startedAt);
   const nodes: Node[] = [
     { key: 'browser', label: 'Your browser', icon: <Lock size={15} /> },
     { key: 'outlayer', label: 'OutLayer enclave', icon: <Shield size={15} /> },
-    ...(screening ? [{ key: 'screen', label: 'Policy model', icon: <Chip size={15} /> }] : []),
+    ...(screening ? [{ key: 'screen', label: 'Policy packs', icon: <Chip size={15} /> }] : []),
+    ...(stage === 'await' ? [{ key: 'officer', label: officer ?? 'Officer', icon: <Shield size={15} /> }] : []),
     { key: 'model', label: 'Model TEE', icon: <Chip size={15} /> },
   ];
   const at = (key: string) => (nodes.findIndex((n) => n.key === key) / (nodes.length - 1)) * 100;
   const [from, to] = travel(stage, at);
-  const story = describe(stage, note, model, screening);
+  const story = describe(stage, note, model, screening, officer);
 
   return (
     <section className="live card">
@@ -85,6 +88,8 @@ function travel(stage: Stage, at: (key: string) => number): [number, number] {
       return [at('browser'), at('browser')];
     case 'run':
       return [at('outlayer'), at('model')];
+    case 'await':
+      return [at('outlayer'), at('officer')];
     case 'open':
     case 'verify':
       return [at('browser'), at('browser')];
@@ -96,6 +101,7 @@ function describe(
   note: string | undefined,
   model: string,
   screening: Props['screening'],
+  officer?: string,
 ): { title: string; detail: string; steps?: string[]; footnote?: string } {
   switch (stage) {
     case 'pin':
@@ -118,15 +124,31 @@ function describe(
         steps: [
           'Open the request with the enclave’s own key',
           ...(screening
-            ? [`Ask ${screening.model} the ${screening.rules} policy question${screening.rules === 1 ? '' : 's'} about the prompt`]
+            ? [
+                screening.company ? `Read ${screening.company}’s configuration from its row` : 'Read which rows the call named',
+                `Read ${screening.packs} pack${screening.packs === 1 ? '' : 's'} from the registry on NEAR and hash their bytes`,
+                'Ask each pack’s decision model its yes/no questions about the prompt',
+              ]
             : []),
           `${screening ? 'If no rule fires: ask' : 'Ask'} NEAR AI for ${model}’s attestation, bound to this exact request`,
           `${model} writes the answer inside an Intel TDX + NVIDIA TEE`,
           'Fetch Intel’s collateral and verify the model’s quote',
           'Send the GPU evidence to NVIDIA for a signed verdict',
-          'Check the answer’s signature, seal the receipt to your key',
+          'Check the answer’s signature, sign the label, seal the receipt to your key',
         ],
         footnote: 'The enclave answers once, sealed — this is what it does, in order. The answer usually takes the longest.',
+      };
+    case 'await':
+      return {
+        title: `Waiting for ${officer ?? 'the officer'}`,
+        detail: note ?? 'A rule escalated. The task is in the officer’s OutLayer inbox; their wallet’s signature starts the run that answers.',
+        steps: [
+          'The officer opens the task in their inbox: the prompt, the rule that fired, the model',
+          'They approve with one wallet signature, or reject with a reason',
+          'The platform starts your run again, with the company’s key and the officer’s row',
+          'That run answers with the model and seals the receipt to this tab’s key',
+        ],
+        footnote: 'This page asks the project every five seconds whether the task has ended. Nothing of the prompt leaves the enclave meanwhile.',
       };
     case 'open':
       return {

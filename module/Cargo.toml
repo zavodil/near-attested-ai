@@ -10,9 +10,11 @@ name = "compliance-gateway"
 path = "src/main.rs"
 
 [dependencies]
-# Input and output, and the `inbox` encryption key the enclave's own key pair
-# is derived from.
-outlayer = { version = "0.2.1", features = ["encryption-keys"] }
+# Input and output; the `inbox` encryption key the enclave's own key pair is
+# derived from; the `label` signing key; tasks for an officer's approval; the
+# rows the call named. The path is OutLayer's SDK tree until 0.2.2 — the rows
+# and `Task::owner` — is on crates.io.
+outlayer = { version = "0.2.2", path = "../../near-offshore/sdk/outlayer", features = ["encryption-keys", "signing-keys", "tasks"] }
 serde = { version = "1.0", features = ["derive"] }
 # `raw_value`: Intel signs the exact bytes of `tcbInfo` and `enclaveIdentity`,
 # so they are carried as served, never re-serialised.

@@ -9,7 +9,10 @@ export function Answer({ outcome, network, projectId }: { outcome: Outcome; netw
   const { receipt } = outcome;
   const verdict: Verdict = overall(outcome.proofs.map((p) => ({ label: p.title, verdict: p.verdict, detail: '' })));
   const screening = receipt.screening;
-  const fired = screening?.outcomes.filter((o) => o.tripped).length ?? 0;
+  const rules = screening?.packs.reduce((n, p) => n + p.outcomes.length, 0) ?? 0;
+  const fired = screening?.fired.length ?? 0;
+  const packs = screening?.packs.length ?? 0;
+  const models = Array.from(new Set(screening?.packs.map((p) => p.model) ?? [])).join(', ');
 
   const download = () => {
     const bundle = {
@@ -28,16 +31,23 @@ export function Answer({ outcome, network, projectId }: { outcome: Outcome; netw
     URL.revokeObjectURL(url);
   };
 
+  const title =
+    receipt.outcome === 'answered' ? (receipt.approval ? 'Answer, after the officer’s approval' : 'Answer') : receipt.outcome === 'blocked' ? 'Blocked by policy' : 'Escalated to an officer';
+  const line =
+    receipt.outcome === 'answered'
+      ? `${receipt.answer?.call.model} · ${verdictLine(verdict)}`
+      : receipt.outcome === 'blocked'
+        ? `The prompt never reached the answering model · ${verdictLine(verdict)}`
+        : `The prompt waits for ${receipt.escalated_to} · ${verdictLine(verdict)}`;
+
   return (
     <section className={`answer card answer-${receipt.outcome}`}>
       <header>
         <Badge verdict={verdict} size={16} />
         <div>
-          <h2>{receipt.outcome === 'answered' ? 'Answer' : 'Blocked by policy'}</h2>
+          <h2>{title}</h2>
           <p>
-            {receipt.outcome === 'answered'
-              ? `${receipt.answer?.call.model} · ${verdictLine(verdict)}`
-              : `The prompt never reached the answering model · ${verdictLine(verdict)}`}
+            {line}
             {outcome.timeMs ? ` · ${(outcome.timeMs / 1000).toFixed(1)} s in the enclave` : ''}
           </p>
         </div>
@@ -46,17 +56,20 @@ export function Answer({ outcome, network, projectId }: { outcome: Outcome; netw
         </button>
       </header>
 
-      {receipt.outcome === 'blocked' && screening && (
+      {receipt.outcome !== 'answered' && screening && (
         <>
-          <div className="blocked-banner">
+          <div className={`blocked-banner ${receipt.outcome}`}>
             <Shield size={22} />
             <div>
               <strong>
-                Stopped inside the enclave: {fired} of {screening.policy.rules.length} rules fired
+                {receipt.outcome === 'blocked' ? 'Stopped inside the enclave' : 'Held inside the enclave'}: {fired} of {rules} rules fired across {packs} pack
+                {packs === 1 ? '' : 's'}
               </strong>
               <span>
-                {screening.policy.model} screened the prompt; the answering model was never called. The receipt has no answer,
-                and OutLayer’s attestation covers that.
+                {models} screened the prompt
+                {receipt.outcome === 'blocked'
+                  ? '; the answering model was never called. The receipt has no answer, and OutLayer’s attestation covers that.'
+                  : `; nothing was answered. A task is in ${receipt.escalated_to}’s OutLayer inbox, and their wallet’s signature starts the run that answers.`}
               </span>
             </div>
           </div>
@@ -66,14 +79,31 @@ export function Answer({ outcome, network, projectId }: { outcome: Outcome; netw
 
       {receipt.outcome === 'answered' && (
         <>
+          {receipt.approval && (
+            <div className="blocked-banner approved">
+              <Shield size={22} />
+              <div>
+                <strong>
+                  Approved by {receipt.approval.officer} · {new Date(receipt.approval.at * 1000).toLocaleString()}
+                </strong>
+                <span>
+                  {fired} rule{fired === 1 ? '' : 's'} escalated; the officer read the prompt in their inbox and signed. The run that answered is attested
+                  separately, and the label carries the approval.
+                </span>
+              </div>
+            </div>
+          )}
           {screening && (
-            <details className="passed-policy">
+            <details className="passed-policy" open={!!receipt.approval}>
               <summary>
-                Passed the policy · {screening.policy.rules.length} rule{screening.policy.rules.length === 1 ? '' : 's'} checked by{' '}
-                {screening.policy.model}
+                {receipt.approval ? 'The screen that escalated' : 'Passed the packs'} · {rules} rule{rules === 1 ? '' : 's'} in {packs} pack{packs === 1 ? '' : 's'}, checked by{' '}
+                {models}
               </summary>
               <PolicyBars screening={screening} compact />
             </details>
+          )}
+          {!screening && receipt.mode.mode === 'personal' && (
+            <p className="hint">Not screened: no pack was chosen. The label says so, and a company’s gate refuses it.</p>
           )}
           <div className="answer-text">{receipt.answer?.text}</div>
         </>

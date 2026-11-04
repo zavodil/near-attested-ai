@@ -1,49 +1,31 @@
 //! What the browser asks, once the enclave has opened it.
 
+use crate::config::Mode;
+use crate::pack::{PackRef, MAX_PACKS};
 use serde::{Deserialize, Serialize};
 
 const MAX_PROMPT_BYTES: usize = 64 * 1024;
-const MAX_RULES: usize = 8;
-const MAX_QUESTION_CHARS: usize = 1000;
-/// The default answer length. Completion is not streamed, and the platform
-/// cuts every outbound request at 30 s, so the whole answer must arrive in
-/// that: NEAR AI's fast models write about 45 tokens a second.
-const DEFAULT_MAX_TOKENS: u32 = 600;
+/// The default answer length. Completion is not streamed; the manifest gives
+/// NEAR AI 120 s a request, and its fast models write about 45 tokens a
+/// second.
+const DEFAULT_MAX_TOKENS: u32 = 900;
 const MAX_TOKENS: u32 = 1200;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
     pub prompt: String,
     /// The answering model: canonical NEAR AI id, served from a NEAR-operated TEE.
     pub model: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
-    /// The optional policy check before the prompt reaches the answering model.
-    #[serde(default)]
-    pub screening: Option<Policy>,
+    /// The packs the prompt is screened with, `id@version` each, in
+    /// personal mode. In company mode the configuration decides, and a
+    /// request that names packs is refused.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub packs: Vec<String>,
     /// The browser's key the receipt is sealed to (secp256k1, hex).
     pub reply_pubkey: String,
-}
-
-/// A screening policy: yes/no questions a decision model answers about the
-/// prompt, and the probability of "yes" at which each one blocks it.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Policy {
-    pub model: String,
-    pub rules: Vec<Rule>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct Rule {
-    /// `[a-z0-9_]`, unique in the policy: the question's key in the decision request.
-    pub id: String,
-    pub question: String,
-    /// Blocks when P(yes) × 100 ≥ this, 1–100. A whole number so the policy's
-    /// hash comes out the same in every language that re-serialises it.
-    pub block_at: u8,
 }
 
 impl Request {
@@ -55,6 +37,32 @@ impl Request {
 
     pub fn max_tokens(&self) -> u32 {
         self.max_tokens.unwrap_or(DEFAULT_MAX_TOKENS)
+    }
+
+    /// The packs this run screens with: the company's, or the request's.
+    pub fn packs_under(&self, mode: &Mode) -> Result<Vec<PackRef>, String> {
+        match mode {
+            Mode::Company(company) => {
+                if !self.packs.is_empty() {
+                    return Err(format!(
+                        "this call runs under {}'s configuration, which decides the packs; the request names its own",
+                        company.org
+                    ));
+                }
+                if let Some(models) = &company.config.models {
+                    if !models.iter().any(|m| m == &self.model) {
+                        return Err(format!(
+                            "{}'s configuration allows the models {}; the request names {}",
+                            company.org,
+                            models.join(", "),
+                            self.model
+                        ));
+                    }
+                }
+                Ok(company.config.packs())
+            }
+            Mode::Personal => self.packs.iter().map(|named| PackRef::parse(named)).collect(),
+        }
     }
 
     fn validate(&self) -> Result<(), String> {
@@ -72,35 +80,11 @@ impl Request {
                 return Err(format!("`max_tokens` is {n}; it must be 1–{MAX_TOKENS}"));
             }
         }
-        if let Some(policy) = &self.screening {
-            policy.validate()?;
+        if self.packs.len() > MAX_PACKS {
+            return Err(format!("a request names at most {MAX_PACKS} packs; this one names {}", self.packs.len()));
         }
-        Ok(())
-    }
-}
-
-impl Policy {
-    fn validate(&self) -> Result<(), String> {
-        if self.model.trim().is_empty() {
-            return Err("the screening policy names no `model`".to_string());
-        }
-        if self.rules.is_empty() || self.rules.len() > MAX_RULES {
-            return Err(format!("a screening policy has 1–{MAX_RULES} rules; this one has {}", self.rules.len()));
-        }
-        let mut seen = std::collections::HashSet::new();
-        for rule in &self.rules {
-            if rule.id.is_empty() || !rule.id.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_') {
-                return Err(format!("rule id {:?} must be [a-z0-9_] and not empty", rule.id));
-            }
-            if !seen.insert(rule.id.as_str()) {
-                return Err(format!("rule id {:?} appears twice", rule.id));
-            }
-            if rule.question.trim().is_empty() || rule.question.chars().count() > MAX_QUESTION_CHARS {
-                return Err(format!("rule {:?}: the question must be 1–{MAX_QUESTION_CHARS} characters", rule.id));
-            }
-            if !(1..=100).contains(&rule.block_at) {
-                return Err(format!("rule {:?}: `block_at` is {}; it must be 1–100", rule.id, rule.block_at));
-            }
+        for named in &self.packs {
+            PackRef::parse(named)?;
         }
         Ok(())
     }
@@ -109,16 +93,25 @@ impl Policy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{Company, Config};
 
     fn request(extra: &str) -> String {
-        format!(r#"{{"prompt":"hello","model":"Qwen/Qwen3.8-27B","reply_pubkey":"02aa"{extra}}}"#)
+        format!(r#"{{"prompt":"hello","model":"deepseek-ai/DeepSeek-V4.1-Flash-1017","reply_pubkey":"02aa"{extra}}}"#)
+    }
+
+    fn company(models: &str) -> Mode {
+        Mode::Company(Company {
+            org: "compliance.acme.testnet".into(),
+            config: Config::parse(format!(r#"{{"frameworks":["eu-ai-act/art5@1"]{models}}}"#).as_bytes()).unwrap(),
+            config_sha256: "00".into(),
+        })
     }
 
     #[test]
-    fn a_plain_request_reads_with_the_default_length() {
+    fn a_plain_request_reads_with_the_default_length_and_no_packs() {
         let r = Request::parse(request("").as_bytes()).unwrap();
         assert_eq!(r.max_tokens(), DEFAULT_MAX_TOKENS);
-        assert!(r.screening.is_none());
+        assert!(r.packs_under(&Mode::Personal).unwrap().is_empty());
     }
 
     #[test]
@@ -128,16 +121,24 @@ mod tests {
     }
 
     #[test]
-    fn a_policy_is_held_to_its_shape() {
-        let rule = |id: &str, block_at: u32| format!(r#"{{"id":"{id}","question":"q?","block_at":{block_at}}}"#);
-        let with = |rules: &str| request(&format!(r#","screening":{{"model":"levanto/sage-1.4","rules":[{rules}]}}"#));
+    fn in_personal_mode_the_request_names_its_packs() {
+        let r = Request::parse(request(r#","packs":["eu-ai-act/art5@1","gdpr/art9@2"]"#).as_bytes()).unwrap();
+        let packs = r.packs_under(&Mode::Personal).unwrap();
+        assert_eq!(packs.iter().map(PackRef::name).collect::<Vec<_>>(), vec!["eu-ai-act/art5@1", "gdpr/art9@2"]);
+        assert!(Request::parse(request(r#","packs":["eu-ai-act/art5"]"#).as_bytes()).unwrap_err().contains("id@version"));
+        let many = (0..7).map(|n| format!("\"p/{n}@1\"")).collect::<Vec<_>>().join(",");
+        assert!(Request::parse(request(&format!(r#","packs":[{many}]"#)).as_bytes()).unwrap_err().contains("at most 6"));
+    }
 
-        assert!(Request::parse(with(&rule("pii", 50)).as_bytes()).is_ok());
-        assert!(Request::parse(with("").as_bytes()).unwrap_err().contains("1–8 rules"));
-        assert!(Request::parse(with(&format!("{},{}", rule("a", 50), rule("a", 60))).as_bytes()).unwrap_err().contains("twice"));
-        assert!(Request::parse(with(&rule("Bad-Id", 50)).as_bytes()).unwrap_err().contains("[a-z0-9_]"));
-        assert!(Request::parse(with(&rule("pii", 0)).as_bytes()).unwrap_err().contains("1–100"));
-        assert!(Request::parse(with(&rule("pii", 101)).as_bytes()).is_err());
+    #[test]
+    fn in_company_mode_the_configuration_decides() {
+        let plain = Request::parse(request("").as_bytes()).unwrap();
+        assert_eq!(plain.packs_under(&company("")).unwrap().iter().map(PackRef::name).collect::<Vec<_>>(), vec!["eu-ai-act/art5@1"]);
+        let own = Request::parse(request(r#","packs":["gdpr/art9@1"]"#).as_bytes()).unwrap();
+        assert!(own.packs_under(&company("")).unwrap_err().contains("names its own"));
+        let other_model = plain.packs_under(&company(r#","models":["Qwen/Qwen3.8-27B"]"#)).unwrap_err();
+        assert!(other_model.contains("allows the models"), "{other_model}");
+        assert!(plain.packs_under(&company(r#","models":["deepseek-ai/DeepSeek-V4.1-Flash-1017"]"#)).is_ok());
     }
 
     #[test]

@@ -13,7 +13,7 @@ import { utf8, fromBase64, sha256Hex } from '../bytes';
 import { ATTESTATION_V1_FROM, type Network } from '../network';
 import { fetchCollateral, measurementsApproved, type AttestationRecord } from '../outlayer';
 import { quoteFmspc, verifyQuote } from './dcap';
-import { check, fail, message, overall, pass, short, warn, type ProofGroup, type Step } from './types';
+import { check, fail, message, overall, pass, short, skip, warn, type ProofGroup, type Step } from './types';
 
 export function taskHash(att: AttestationRecord): string {
   const parts: Uint8Array[] = [];
@@ -53,12 +53,14 @@ export function taskHash(att: AttestationRecord): string {
 /**
  * Verify one OutLayer run. `input` and `output` are what this page sent and
  * received; the worker hashed `input` as the API relayed it and `output` as
- * compact JSON, both in the member order the module and this page use.
+ * compact JSON, both in the member order the module and this page use. A
+ * run the platform started on an officer's approval has an input this page
+ * never saw (`null`): the attestation's input hash is then taken as it is.
  */
 export async function verifyOutlayerRun(
   network: Network,
   att: AttestationRecord,
-  input: unknown,
+  input: unknown | null,
   output: unknown,
   card: { id: string; title: string },
   extra: Step[] = [],
@@ -111,12 +113,14 @@ export async function verifyOutlayerRun(
   }
 
   steps.push(
-    check(
-      sha256Hex(JSON.stringify(input)) === att.input_hash,
-      'Input is what this page sent',
-      'sha256(input) matches the attested input hash',
-      'the attested input hash is of other input',
-    ),
+    input === null
+      ? skip('Input is what this page sent', 'the platform started this run on the officer’s approval; its input is the task’s approval, not this page’s')
+      : check(
+          sha256Hex(JSON.stringify(input)) === att.input_hash,
+          'Input is what this page sent',
+          'sha256(input) matches the attested input hash',
+          'the attested input hash is of other input',
+        ),
     check(
       sha256Hex(JSON.stringify(output)) === att.output_hash,
       'Output is what this page received',

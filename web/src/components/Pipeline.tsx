@@ -4,16 +4,18 @@ import { Spinner, VerdictIcon } from './Icons';
 const STAGES: { stage: Stage; label: string; caption: string }[] = [
   { stage: 'pin', label: 'Pin', caption: 'verify the enclave’s key' },
   { stage: 'seal', label: 'Seal', caption: 'encrypt to that key' },
-  { stage: 'run', label: 'Run', caption: 'screen · answer · gather evidence' },
+  { stage: 'run', label: 'Run', caption: 'read the packs · screen · answer · gather evidence' },
+  { stage: 'await', label: 'Officer', caption: 'an escalation waits for a yes' },
   { stage: 'open', label: 'Open', caption: 'decrypt the receipt here' },
   { stage: 'verify', label: 'Verify', caption: 'check every proof in this browser' },
 ];
 
-export function Pipeline({ current, failed, done }: { current: Stage | null; failed: boolean; done: boolean }) {
-  const index = current ? STAGES.findIndex((s) => s.stage === current) : -1;
+export function Pipeline({ current, failed, done, escalated }: { current: Stage | null; failed: boolean; done: boolean; escalated: boolean }) {
+  const stages = escalated || current === 'await' ? STAGES : STAGES.filter((s) => s.stage !== 'await');
+  const index = current ? stages.findIndex((s) => s.stage === current) : -1;
   return (
     <ol className="pipeline">
-      {STAGES.map((s, i) => {
+      {stages.map((s, i) => {
         const state = done || i < index ? 'done' : i === index ? (failed ? 'failed' : 'active') : 'todo';
         return (
           <li key={s.stage} className={`pipe pipe-${state}`}>

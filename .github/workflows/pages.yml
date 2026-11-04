@@ -40,6 +40,10 @@ jobs:
           VITE_OUTLAYER_NETWORK: testnet
           VITE_PROJECT_ID: zavodil2.testnet/compliance-gateway
           VITE_SECRETS_PROFILE: author
+          # The company's row first, then the officers' (`owner/profile, owner/profile`):
+          # a repository variable, not a secret — row names are public on chain.
+          VITE_SECRETS_ROWS: ${{ vars.VITE_SECRETS_ROWS }}
+          VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE }}
           VITE_PAYMENT_KEY_SEALED: ${{ secrets.VITE_PAYMENT_KEY_SEALED }}
       - uses: actions/upload-pages-artifact@v3
         with:

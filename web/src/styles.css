@@ -372,3 +372,53 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 }
 
 .link-problem { margin-bottom: 14px; }
+
+/* ── policy packs ─────────────────────────────────────────────────────── */
+.packs-head { display: flex; flex-direction: column; gap: 2px; }
+.packs-head small { color: var(--muted); font-size: 12.5px; }
+.packs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.pack { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface); }
+.pack.chosen { border-color: var(--border-strong); }
+.pack.locked { background: var(--surface-2); }
+.pack label { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: start; cursor: pointer; }
+.pack label input { margin-top: 3px; }
+.pack-title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.pack-sub { grid-column: 2; color: var(--muted); font-size: 12.5px; }
+.pack-rules { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+.company-rules .pack { display: flex; flex-direction: column; gap: 3px; }
+.policy-pill.escalate { background: var(--warn-bg); color: var(--warn); }
+.policy-packs { display: flex; flex-direction: column; gap: 14px; }
+.policy-pack header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.policy-pack header .pack-sub { grid-column: auto; }
+.policy-bars li.escalated { border-color: rgba(245, 180, 70, 0.45); }
+.escalated .policy-fill { background: linear-gradient(90deg, #ffd27a, var(--warn)); box-shadow: 0 0 12px rgba(245, 180, 70, 0.4); }
+.escalated .policy-figures strong { color: var(--warn); }
+.policy-id em { font-style: normal; color: var(--muted); font-weight: 400; margin-left: 4px; }
+.blocked-banner.escalated { border-color: rgba(245, 180, 70, 0.4); }
+.blocked-banner.approved { border-color: rgba(80, 200, 120, 0.4); }
+
+/* ── whose rules ──────────────────────────────────────────────────────── */
+.orgpolicy { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; margin-bottom: 14px; }
+.orgpolicy h3 { margin: 0 0 4px; font-size: 15px; }
+.orgpolicy p { margin: 0; color: var(--muted); font-size: 13px; }
+.orgpolicy-list { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
+.orgpolicy-list li { margin: 3px 0; }
+.orgpolicy-officers { margin-top: 6px !important; }
+
+/* ── the label and the gate ───────────────────────────────────────────── */
+.label header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.label header div { flex: 1; }
+.label h2 { margin: 0 0 3px; font-size: 17px; }
+.label header p { margin: 0; color: var(--muted); font-size: 13px; }
+.label-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0 0 14px; font-size: 13px; }
+.label-facts dt { color: var(--muted); }
+.label-facts dd { margin: 0; }
+.gate { border-top: 1px solid var(--border); padding-top: 12px; }
+.gate h3 { margin: 0 0 4px; font-size: 14px; }
+.gate-lede, .gate-note { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+.gate-rules { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.gate-rule { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.gate-verdict { font-weight: 700; padding: 8px 12px; border-radius: 10px; margin-bottom: 8px; font-size: 14px; }
+.gate-verdict.accepted { background: var(--pass-bg); color: var(--pass); }
+.gate-verdict.refused { background: var(--fail-bg); color: var(--fail); }
+.gate-verdict span { font-weight: 400; }

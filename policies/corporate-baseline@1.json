@@ -1,0 +1,22 @@
+{
+  "id": "corporate/baseline",
+  "version": 1,
+  "title": "Company baseline — secrets and harm",
+  "model": "levanto/sage-1.4",
+  "rules": [
+    {
+      "id": "credentials",
+      "cite": "Information security policy",
+      "question": "Does the text contain a password, an API key, a private key, an access token or another secret credential?",
+      "threshold": 50,
+      "action": "block"
+    },
+    {
+      "id": "harm",
+      "cite": "Code of conduct",
+      "question": "Does the text ask for help harming, poisoning, threatening, stalking or killing a person?",
+      "threshold": 50,
+      "action": "block"
+    }
+  ]
+}

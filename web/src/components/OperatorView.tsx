@@ -5,7 +5,10 @@ const clip = (value: string, keep = 220) => (value.length > keep ? `${value.slic
 
 /** Everything OutLayer's coordinator relayed and stored for this call. */
 export function OperatorView({ outcome }: { outcome: Outcome }) {
-  const { input, output } = outcome.operatorView;
+  const { output } = outcome.operatorView;
+  // The sealed request this page sent; for the run started on an officer's
+  // approval, the platform's input: the task's id and the approval.
+  const input = outcome.operatorView.input as { op?: string; operation?: string; sealed?: string; task_id?: string };
   return (
     <section className="operator">
       <header>
@@ -18,7 +21,13 @@ export function OperatorView({ outcome }: { outcome: Outcome }) {
       <div className="operator-grid">
         <div>
           <span className="operator-label">Request</span>
-          <pre>{JSON.stringify({ op: input.op, sealed: clip(input.sealed) }, null, 2)}</pre>
+          <pre>
+            {JSON.stringify(
+              input.sealed ? { op: input.op, sealed: clip(input.sealed) } : { operation: input.operation, task_id: input.task_id, approval: '…' },
+              null,
+              2,
+            )}
+          </pre>
         </div>
         <div>
           <span className="operator-label">Response</span>

@@ -1,25 +1,39 @@
-import type { Rule } from './receipt';
+/** The packs the registry holds, for personal mode's picker, and prompts to try. */
+export interface PackChoice {
+  ref: string;
+  title: string;
+  action: 'block' | 'escalate';
+  summary: string;
+}
 
-/** A starting policy: what a firm sending privileged material to an AI would screen for. */
-export const DEFAULT_RULES: Rule[] = [
+export const PACKS: PackChoice[] = [
   {
-    id: 'special_category',
-    question:
-      'Does the text reveal special-category personal data about an identifiable person — health, pregnancy, religion, ethnicity, sexual orientation or trade-union membership?',
-    block_at: 60,
+    ref: 'eu-ai-act/art5@1',
+    title: 'EU AI Act · Art. 5 — prohibited practices',
+    action: 'block',
+    summary: 'emotion recognition at work, biometric categorisation, social scoring, exploiting a vulnerability',
   },
   {
-    id: 'employment_decision',
-    question:
-      'Does the text ask to plan or justify dismissing, demoting or not hiring a specific, identifiable person?',
-    block_at: 60,
+    ref: 'eu-ai-act/annex3@1',
+    title: 'EU AI Act · Annex III — human oversight',
+    action: 'escalate',
+    summary: 'employment decisions, credit and insurance, essential services',
   },
   {
-    id: 'credentials',
-    question: 'Does the text contain a password, an API key, a private key or another secret credential?',
-    block_at: 50,
+    ref: 'gdpr/art9@1',
+    title: 'GDPR · Art. 9 — special-category data',
+    action: 'block',
+    summary: 'health, pregnancy, religion, ethnicity, sexual orientation about an identifiable person',
+  },
+  {
+    ref: 'corporate/baseline@1',
+    title: 'Company baseline',
+    action: 'block',
+    summary: 'credentials, harm',
   },
 ];
+
+export const DEFAULT_PACKS: string[] = PACKS.map((p) => p.ref);
 
 export const EXAMPLES: { label: string; prompt: string }[] = [
   {
@@ -31,6 +45,11 @@ export const EXAMPLES: { label: string; prompt: string }[] = [
     label: 'Board memo summary',
     prompt:
       'Summarise for a board in five bullet points: our portfolio company missed Q3 revenue by 18%, burn is 1.4M/month, runway 7 months, two enterprise renewals slipped to Q1, and the CFO proposes a 12% cost cut focused on marketing and contractors.',
+  },
+  {
+    label: 'Needs an officer',
+    prompt:
+      'Rank these three candidates for the promotion to team lead and tell me who to pick: Marco Rossi (8 years, strong delivery, two complaints about tone), Priya Nair (4 years, best reviews on the team, on parental leave until March), Tom Becker (6 years, average reviews, closest to the VP).',
   },
   {
     label: 'Should be blocked',

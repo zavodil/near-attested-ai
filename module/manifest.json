@@ -1,14 +1,24 @@
 {
   "display": {
-    "name": "Attested AI — compliance gateway"
+    "name": "Attested AI \u2014 compliance gateway"
   },
   "operations": [
     "enclave_key",
-    "ask"
+    "org_policy",
+    "ask",
+    "answer_escalated",
+    "task_status",
+    "task_cancel",
+    "task_delete",
+    "tasks",
+    "tasks_unlock"
   ],
   "capabilities": {
     "network": [
-      "cloud-api.near.ai",
+      {
+        "host": "cloud-api.near.ai",
+        "timeout_secs": 120
+      },
       "api.trustedservices.intel.com",
       "certificates.trustedservices.intel.com",
       "nras.attestation.nvidia.com"
@@ -18,5 +28,13 @@
     {
       "path": "inbox"
     }
-  ]
+  ],
+  "signing_keys": [
+    {
+      "path": "label",
+      "type": "ed25519"
+    }
+  ],
+  "tasks": true,
+  "secrets_refs": true
 }

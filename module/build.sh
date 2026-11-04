@@ -16,7 +16,10 @@ rustup target add wasm32-wasip2 2>/dev/null || true
 # names) does not depend on who built it or where the repository lives — the
 # same toolchain (rust-toolchain.toml) and Cargo.lock give the same bytes.
 CARGO_HOME_DIR="${CARGO_HOME:-$HOME/.cargo}"
-RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$CARGO_HOME_DIR=/cargo --remap-path-prefix=$PWD=/build" \
+# The SDK is a path dependency outside this tree until 0.2.2 is published;
+# its tree is rewritten the same way.
+SDK_ROOT="$(cd ../../near-offshore && pwd)"
+RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=$CARGO_HOME_DIR=/cargo --remap-path-prefix=$SDK_ROOT=/outlayer --remap-path-prefix=$PWD=/build" \
     cargo build --target wasm32-wasip2 --release
 echo ""
 
@@ -46,16 +49,21 @@ if ! wasm-tools component wit "$WASM_FILE" 2>/dev/null | grep -q "outlayer:encry
 fi
 echo "OK: outlayer:encryption-keys is imported"
 
-# The operations the manifest lists are the ones `main` dispatches on.
+# The operations the manifest lists are the ones `main` serves (OPERATIONS),
+# and the manifest's network entry for NEAR AI names its request time.
 python3 - manifest.json src/main.rs <<'PY'
 import json, re, sys
-declared = set(json.load(open(sys.argv[1]))["operations"])
+manifest = json.load(open(sys.argv[1]))
+declared = manifest["operations"]
 src = open(sys.argv[2]).read()
-body = re.search(r'enum Input \{(.*?)\n\}', src, re.S).group(1)
-variants = re.findall(r'^\s*([A-Z][A-Za-z]*)', body, re.M)
-dispatched = {re.sub(r'(?<!^)([A-Z])', r'_\1', v).lower() for v in variants}
-if declared != dispatched:
-    print(f"ERROR: manifest operations {sorted(declared)} vs Input variants {sorted(dispatched)}")
+body = re.search(r'pub const OPERATIONS: &\[&str\] = &\[(.*?)\];', src, re.S).group(1)
+served = re.findall(r'"([a-z_]+)"', body)
+if declared != served:
+    print(f"ERROR: manifest operations {declared} vs OPERATIONS {served}")
+    sys.exit(1)
+nearai = [h for h in manifest["capabilities"]["network"] if isinstance(h, dict) and h.get("host") == "cloud-api.near.ai"]
+if not nearai or nearai[0].get("timeout_secs") != 120:
+    print("ERROR: the manifest gives cloud-api.near.ai no 120 s entry")
     sys.exit(1)
 print(f"Manifest: {len(declared)} operations agree with the code")
 PY

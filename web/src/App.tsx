@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Answer } from './components/Answer';
 import { Composer, type Draft } from './components/Composer';
+import { LabelCard } from './components/LabelCard';
 import { LiveRun } from './components/LiveRun';
 import { OperatorView } from './components/OperatorView';
+import { OrgPolicyCard } from './components/OrgPolicy';
 import { Pipeline } from './components/Pipeline';
 import { ProofCard } from './components/ProofCard';
 import { Settings, settingsProblem, type SettingsValue } from './components/Settings';
 import { TrustChain } from './components/TrustChain';
 import { loadCatalogue, type Catalogue } from './lib/models';
-import { DEFAULT_NETWORK, DEFAULT_PROJECT, DEFAULT_SECRETS_PROFILE, NETWORKS, SEALED_PAYMENT_KEY } from './lib/network';
+import { DEFAULT_NETWORK, DEFAULT_PROJECT, DEFAULT_ROWS, DEFAULT_SECRETS_PROFILE, DEMO_MODE, NETWORKS, SEALED_PAYMENT_KEY } from './lib/network';
 import { openSealedKey, takeDecryptKey } from './lib/sealedKey';
-import { paymentKeyOwner } from './lib/outlayer';
-import { DEFAULT_RULES, EXAMPLES } from './lib/presets';
-import { ask, pinEnclave, type Outcome, type PinnedEnclave, type Stage, type Target } from './lib/session';
+import { parseRows, paymentKeyOwner, type SecretsRef } from './lib/outlayer';
+import { DEFAULT_PACKS, EXAMPLES } from './lib/presets';
+import { ask, awaitApproval, orgPolicy, pinEnclave, type OrgPolicy, type Outcome, type PinnedEnclave, type Stage, type Target } from './lib/session';
 import { message } from './lib/verify/types';
 
 const SETTINGS_KEY = 'attested-ai:settings';
@@ -24,6 +26,7 @@ function loadSettings(): SettingsValue {
     projectId: DEFAULT_PROJECT,
     paymentKey: '',
     secretsProfile: DEFAULT_SECRETS_PROFILE,
+    rows: DEFAULT_ROWS,
   };
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}');
@@ -35,15 +38,25 @@ function loadSettings(): SettingsValue {
 
 function saveSettings(s: SettingsValue) {
   try {
-    localStorage.setItem(
-      SETTINGS_KEY,
-      JSON.stringify({ networkId: s.networkId, projectId: s.projectId, secretsProfile: s.secretsProfile }),
-    );
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ networkId: s.networkId, projectId: s.projectId, secretsProfile: s.secretsProfile, rows: s.rows }));
     // The payment key lives for this tab only.
     sessionStorage.setItem(PAYMENT_KEY, s.paymentKey);
   } catch {
     // Storage refused (private window): the page works, it just forgets on reload.
   }
+}
+
+/** The rows a call names: the company's and the officers', or the visitor's own. */
+function rowsOf(s: SettingsValue): SecretsRef[] {
+  if (s.rows.trim()) {
+    try {
+      return parseRows(s.rows);
+    } catch {
+      return [];
+    }
+  }
+  const owner = paymentKeyOwner(s.paymentKey);
+  return owner ? [{ account_id: owner, profile: s.secretsProfile.trim() }] : [];
 }
 
 export function App() {
@@ -53,9 +66,7 @@ export function App() {
     prompt: EXAMPLES[0].prompt,
     model: 'deepseek-ai/DeepSeek-V4.1-Flash-1017',
     maxTokens: 900,
-    screen: true,
-    screeningModel: 'levanto/sage-1.4',
-    rules: DEFAULT_RULES,
+    packs: DEFAULT_PACKS,
   });
   const [stage, setStage] = useState<Stage | null>(null);
   const [note, setNote] = useState<string | undefined>();
@@ -64,7 +75,9 @@ export function App() {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState(false);
   const pinned = useRef(new Map<string, PinnedEnclave>());
+  const policies = useRef(new Map<string, OrgPolicy>());
   const [enclave, setEnclave] = useState<PinnedEnclave | null>(null);
+  const [policy, setPolicy] = useState<OrgPolicy | null>(null);
 
   const [linkProblem, setLinkProblem] = useState<string | null>(null);
   // Bumped when a link fills the form, so the settings panel opens collapsed.
@@ -97,9 +110,9 @@ export function App() {
     network: NETWORKS[settings.networkId],
     projectId: settings.projectId.trim(),
     paymentKey: settings.paymentKey,
-    secretsProfile: settings.secretsProfile,
+    rows: rowsOf(settings),
   };
-  const pinKey = `${settings.networkId}|${target.projectId}|${paymentKeyOwner(settings.paymentKey)}`;
+  const pinKey = `${settings.networkId}|${target.projectId}|${paymentKeyOwner(settings.paymentKey)}|${target.rows.map((r) => `${r.account_id}/${r.profile}`).join(',')}`;
 
   const currentStage = useRef<Stage | null>(null);
   const layout = useRef<HTMLElement>(null);
@@ -126,18 +139,27 @@ export function App() {
         pinned.current.set(pinKey, key);
       }
       setEnclave(key);
-      const result = await ask(
+      let whose = policies.current.get(pinKey);
+      if (!whose) {
+        onStage('pin', 'policy');
+        whose = await orgPolicy(target, (s) => onStage('pin', s === 'verifying' ? 'policy-verifying' : 'policy'));
+        policies.current.set(pinKey, whose);
+      }
+      setPolicy(whose);
+      if (whose.mode === 'personal' && !DEMO_MODE) {
+        throw new Error('This page runs on a company’s rows only, and the rows named hold no company configuration.');
+      }
+      let result = await ask(
         target,
         key,
-        {
-          prompt: draft.prompt,
-          model: draft.model.trim(),
-          maxTokens: draft.maxTokens,
-          screening: draft.screen ? { model: draft.screeningModel.trim(), rules: draft.rules } : null,
-        },
+        { prompt: draft.prompt, model: draft.model.trim(), maxTokens: draft.maxTokens, packs: whose.mode === 'company' ? [] : draft.packs },
         onStage,
       );
       setOutcome(result);
+      if (result.escalation) {
+        result = await awaitApproval(target, key, result, onStage);
+        setOutcome(result);
+      }
       currentStage.current = null;
       setStage(null);
     } catch (e) {
@@ -147,8 +169,14 @@ export function App() {
     }
   };
 
-  const proofs = outcome ? [...(enclave ? [enclave.proof] : []), ...outcome.proofs] : [];
+  const proofs = outcome ? [...(enclave ? [enclave.proof] : []), ...(policy ? [policy.proof] : []), ...outcome.proofs] : [];
   const started = busy || error !== null || outcome !== null;
+  const screening =
+    policy?.mode === 'company'
+      ? { packs: policy.packs.length, company: policy.config.org_name ?? policy.org }
+      : draft.packs.length
+        ? { packs: draft.packs.length, company: null }
+        : null;
 
   return (
     <div className="page">
@@ -164,34 +192,23 @@ export function App() {
           <span>Prove what happened to it.</span>
         </h1>
         <p className="lede">
-          Your prompt is sealed in this browser, opened only inside an attested enclave, screened against your policy, answered
-          by a model running in a GPU TEE, and returned with a receipt anyone can check — trusting Intel and NVIDIA, not us.
+          Your prompt is sealed in this browser, opened only inside an attested enclave, screened against the EU AI Act and your company’s rules,
+          answered by a model running in a GPU TEE or held for an officer — and returned with a receipt and a signed label anyone can check,
+          trusting Intel and NVIDIA, not us.
         </p>
       </header>
 
       {linkProblem && <div className="error card link-problem">{linkProblem}</div>}
       <Settings key={settingsGeneration} value={settings} onChange={setSettings} />
+      {policy && <OrgPolicyCard policy={policy} />}
 
       <main ref={layout} className={`layout ${started ? 'active' : 'idle'}`}>
-        <Composer
-          draft={draft}
-          catalogue={catalogue}
-          busy={busy}
-          disabledReason={settingsProblem(settings)}
-          onChange={setDraft}
-          onSubmit={submit}
-        />
+        <Composer draft={draft} catalogue={catalogue} policy={policy} busy={busy} disabledReason={settingsProblem(settings)} onChange={setDraft} onSubmit={submit} />
 
         <section className="results" aria-hidden={!started}>
-          {started && <Pipeline current={stage} failed={error !== null} done={outcome !== null} />}
+          {started && <Pipeline current={stage} failed={error !== null} done={outcome !== null && !busy} escalated={!!outcome?.escalation || !!outcome?.receipt.approval} />}
           {busy && stage && (
-            <LiveRun
-              stage={stage}
-              note={note}
-              startedAt={stageStartedAt}
-              model={draft.model.trim()}
-              screening={draft.screen ? { model: draft.screeningModel.trim(), rules: draft.rules.length } : null}
-            />
+            <LiveRun stage={stage} note={note} startedAt={stageStartedAt} model={draft.model.trim()} screening={screening} officer={outcome?.escalation?.officer} />
           )}
           {error && (
             <div className="error card">
@@ -201,7 +218,8 @@ export function App() {
           {outcome && (
             <>
               <Answer outcome={outcome} network={settings.networkId} projectId={target.projectId} />
-              <TrustChain proofs={proofs} blocked={outcome.receipt.outcome === 'blocked'} />
+              <TrustChain proofs={proofs} outcome={outcome.receipt.outcome} />
+              <LabelCard signed={outcome.receipt.label} label={outcome.label} labelPubkey={enclave?.labelPubkey ?? null} />
               <div className="proofs">
                 {proofs.map((group) => (
                   <ProofCard key={group.id + group.title} group={group} />
@@ -216,8 +234,8 @@ export function App() {
       {!started && <Explainer />}
 
       <footer className="footer">
-        Verification runs in this page: Intel TDX quotes with Intel DCAP (WebAssembly), NVIDIA tokens against NVIDIA’s published keys,
-        signatures with secp256k1 recovery. Nothing here asks OutLayer whether OutLayer is honest.
+        Verification runs in this page: Intel TDX quotes with Intel DCAP (WebAssembly), NVIDIA tokens against NVIDIA’s published keys, signatures with
+        secp256k1 recovery and ed25519. Nothing here asks OutLayer whether OutLayer is honest.
       </footer>
     </div>
   );
@@ -226,9 +244,9 @@ export function App() {
 function Explainer() {
   const items = [
     ['Sealed here', 'ECIES to a key that exists only inside the OutLayer enclave — pinned after its TDX attestation verifies.'],
-    ['Screened inside', 'Your policy, as yes/no questions to a decision model. A rule over its threshold stops the prompt.'],
+    ['Screened inside', 'Policy packs read from a registry on NEAR: yes/no questions to a decision model. A rule over its threshold blocks the prompt, or holds it for an officer’s approval in their OutLayer inbox.'],
     ['Answered in a TEE', 'Only a model NEAR AI serves from its own Intel TDX + NVIDIA confidential GPUs. Anything else is refused before it is sent.'],
-    ['Proven to you', 'The receipt carries the quotes, NVIDIA’s verdict and the model’s signature. This page checks each one.'],
+    ['Labelled and proven', 'A signed label says which rules applied and what they decided, with no prompt in it. The receipt carries every quote and signature; this page checks each one.'],
   ];
   return (
     <div className="explainer">
