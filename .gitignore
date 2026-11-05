@@ -10,3 +10,4 @@ dist/
 !test
 demo/evidence/
 demo/.state/
+demo/walkthrough/

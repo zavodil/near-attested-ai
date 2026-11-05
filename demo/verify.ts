@@ -125,4 +125,5 @@ writeFileSync(resolve(EVIDENCE, 'index.html'), html);
 for (const r of rows) console.log(`${r.company_gate.padEnd(9)} ${r.company_signature.padEnd(8)} ${r.employee_signature.padEnd(8)} ${r.attestation.slice(0, 10).padEnd(11)} ${r.outcome.padEnd(24)} ${r.title}`.slice(0, 170));
 const broken = rows.filter((r) => r.scene !== 'forged' && (r.receipt_matches === 'INVALID' || r.attestation.startsWith('FAILED')));
 console.log(`${rows.length} rows, ${broken.length} broken${STRICT ? `, pins ${pinsOk ? 'verified' : 'FAILED'}` : ''}. evidence/index.html, evidence/ledger.csv`);
-process.exit(broken.length || !pinsOk ? 1 : 0);
+if (!rows.length) console.log('no request in this evidence: the scenario did not run through');
+process.exit(broken.length || !pinsOk || !rows.length ? 1 : 0);

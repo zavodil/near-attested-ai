@@ -1,0 +1,15 @@
+{
+  "id": "gdpr/art9",
+  "version": 2,
+  "title": "GDPR — special categories of personal data (Art. 9)",
+  "model": "levanto/sage-2",
+  "rules": [
+    {
+      "id": "special_category",
+      "cite": "Art. 9(1)",
+      "question": "Does the text reveal an identifiable person's health condition, pregnancy, disability, sexual orientation, religion, ethnic origin, political opinions, trade-union membership, genetic or biometric data?",
+      "threshold": 60,
+      "action": "block"
+    }
+  ]
+}

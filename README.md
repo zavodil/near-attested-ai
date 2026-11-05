@@ -44,7 +44,7 @@ stranger is refused before anything runs.
 ```json
 COMPLIANCE_CONFIG = {
   "org_name": "Acme Demo",
-  "frameworks": ["eu-ai-act/art5@1", "eu-ai-act/annex3@1", "gdpr/art9@1", "corporate/baseline@1"],
+  "frameworks": ["eu-ai-act/art5@2", "eu-ai-act/annex3@2", "gdpr/art9@2", "corporate/baseline@2"],
   "models": ["deepseek-ai/DeepSeek-V4.1-Flash-1017"],
   "escalate": { "eu-ai-act/annex3": "hr.acme.testnet" }
 }
@@ -74,8 +74,8 @@ the page; the enclave decides the mode from the project either way.
 > pregnant. We want to restructure her role so she can be let go before her
 > maternity leave starts."*
 
-`gdpr/art9@1` fires (special-category data about an identifiable person,
-P(yes) 99.9% ≥ 60%) and so does `eu-ai-act/annex3@1`'s employment rule. The
+`gdpr/art9@2` fires (special-category data about an identifiable person,
+P(yes) 99.9% ≥ 60%) and so does `eu-ai-act/annex3@2`'s employment rule. The
 strictest action is **block**: the prompt is stopped inside the enclave in a
 few seconds, the answering model is never called, and the receipt shows that.
 
@@ -84,7 +84,7 @@ few seconds, the answering model is never called, and the receipt shows that.
 > *"Rank these three candidates for the promotion to team lead and tell me
 > who to pick: …"*
 
-`eu-ai-act/annex3@1` — Annex III(4), employment decisions — fires with
+`eu-ai-act/annex3@2` — Annex III(4), employment decisions — fires with
 **escalate**. Nothing is answered: a task appears in the officer's OutLayer
 inbox with the prompt, the rule and its citation, and the model. The officer
 approves with one wallet signature; the platform starts the employee's run
@@ -206,7 +206,7 @@ checks it like the answer's.
 
 | Gap | Today | What closes it |
 |---|---|---|
-| The calibrated screening model is not in a TEE | NEAR AI serves `levanto/sage-1.4` as an external provider, and its TEE models refuse the decisions endpoint. The label says so. The TEE packs ask a model in a TEE through a chat completion instead. | A decision model served from NEAR AI's own TEE fleet, or calibration prompts for the TEE packs |
+| The calibrated screening model is not in a TEE | NEAR AI serves `levanto/sage-2` as an external provider, and its TEE models refuse the decisions endpoint. The label says so. The TEE packs ask a model in a TEE through a chat completion instead. | A decision model served from NEAR AI's own TEE fleet, or calibration prompts for the TEE packs |
 | The gate trusts the key it pinned | The page pins it after verifying the attestation; an offline gate trusts whoever pinned it for them | A gate that verifies the `enclave_key` attestation itself, from the same public data |
 | No audit log for the company | Receipts go to the employee's browser only; the company sees who called, when, and the envelopes | Receipts sealed to a company audit key, in project storage |
 | Metadata | The operator still sees who paid, when, and how big the envelopes were | Inherent in a metered service |
@@ -289,10 +289,10 @@ web/        the page: Vite + React + TypeScript, no backend
 
 ## The deployed demo
 
-- **OutLayer projects (testnet):** `outlayer-elena.testnet/compliance-gateway`
-  is the company; `outlayer-elena.testnet/compliance-gateway-tee` is the same
-  company's build with the TEE packs; `zavodil2.testnet/compliance-gateway`
-  holds no configuration and runs personal mode.
+- **OutLayer projects (testnet):** `acme-compliance.testnet/compliance-gateway`
+  is the company; `acme-compliance.testnet/compliance-gateway-tee` is the same
+  company with the TEE packs; `zavodil2.testnet/compliance-gateway` holds no
+  configuration and runs personal mode.
 - **Active version:** the sha256 of `module/`'s build at this commit, printed
   by `module/build.sh`, which pins the toolchain and rewrites local paths so
   the same `rust-toolchain.toml` and `Cargo.lock` give the same bytes. Compare

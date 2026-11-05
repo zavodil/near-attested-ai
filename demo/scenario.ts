@@ -163,7 +163,7 @@ await refused('no-officer', 'An escalation with the officers’ rows left out', 
 
 const personalTarget = on(roles.personal_project, roles.outsider.role, [{ account_id: roles.outsider.account, profile: 'personal' }]);
 const personalPin = await pin(roles.outsider.role, personalTarget);
-await answered('personal-mode', 'The same person on the personal project: a label of nobody’s company', roles.outsider, personalTarget, personalPin, 'Draft a one-line greeting.', ['eu-ai-act/art5@1']);
+await answered('personal-mode', 'The same person on the personal project: a label of nobody’s company', roles.outsider, personalTarget, personalPin, 'Draft a one-line greeting.', ['eu-ai-act/art5@2']);
 
 const teeTarget = on(TEE, recruiter.role);
 const teePin = await pin('tee', teeTarget);

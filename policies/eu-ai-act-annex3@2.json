@@ -1,0 +1,29 @@
+{
+  "id": "eu-ai-act/annex3",
+  "version": 2,
+  "title": "EU AI Act — high-risk uses that need human oversight (Annex III)",
+  "model": "levanto/sage-2",
+  "rules": [
+    {
+      "id": "employment_decision",
+      "cite": "Annex III(4)",
+      "question": "Does the text ask to evaluate, rank, select, promote, dismiss, discipline or monitor a specific job candidate or employee, or to decide on their pay or tasks?",
+      "threshold": 50,
+      "action": "escalate"
+    },
+    {
+      "id": "credit_insurance",
+      "cite": "Annex III(5)(b)(c)",
+      "question": "Does the text ask to assess a specific person's creditworthiness, credit score, or eligibility or price for life or health insurance?",
+      "threshold": 50,
+      "action": "escalate"
+    },
+    {
+      "id": "essential_services",
+      "cite": "Annex III(5)(a)",
+      "question": "Does the text ask to decide whether a specific person gets, keeps or loses a public benefit, healthcare or another essential service?",
+      "threshold": 50,
+      "action": "escalate"
+    }
+  ]
+}

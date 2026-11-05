@@ -57,10 +57,10 @@ config() { jq -nc --arg o "$(role .org_name)" --arg m "$MODEL" --arg hr "$HR" --
 company_row() { jq -nc --arg k "$NEARAI_API_KEY" --arg c "$1" '{NEARAI_API_KEY:$k, COMPLIANCE_CONFIG:$c}'; }
 
 publish "$PROJECT"; sleep 2; publish "$TEE"
-store "$COMPANY" "$COMPANY/$PROJECT" company "whitelist:$PEOPLE" "$(company_row "$(config eu-ai-act/annex3 '["eu-ai-act/art5@1","eu-ai-act/annex3@1","gdpr/art9@1","corporate/baseline@1"]' false)")"
+store "$COMPANY" "$COMPANY/$PROJECT" company "whitelist:$PEOPLE" "$(company_row "$(config eu-ai-act/annex3 '["eu-ai-act/art5@2","eu-ai-act/annex3@2","gdpr/art9@2","corporate/baseline@2"]' false)")"
 store "$COMPANY" "$COMPANY/$TEE" company "whitelist:$PEOPLE" "$(company_row "$(config eu-ai-act/annex3-tee '["eu-ai-act/art5-tee@1","eu-ai-act/annex3-tee@1"]' true)")"
 for officer in "$HR" "$RISK"; do for p in "$PROJECT" "$TEE"; do store "$officer" "$COMPANY/$p" default "whitelist:$PEOPLE" '{}'; done; done
-OWN=$(jq -nc '{org_name:"Not the company", frameworks:["corporate/baseline@1"]}')
+OWN=$(jq -nc '{org_name:"Not the company", frameworks:["corporate/baseline@2"]}')
 store "$RECRUITER" "$COMPANY/$PROJECT" attack-config "whitelist:$RECRUITER" "$(jq -nc --arg c "$OWN" '{COMPLIANCE_CONFIG:$c}')"
 store "$RECRUITER" "$COMPANY/$PROJECT" attack-key "whitelist:$RECRUITER" "$(jq -nc --arg k "$NEARAI_API_KEY" '{NEARAI_API_KEY:$k}')"
 store "$RECRUITER" "$PERSONAL" attack-own "whitelist:$RECRUITER" "$(company_row "$OWN")"

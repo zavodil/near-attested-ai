@@ -8,25 +8,25 @@ export interface PackChoice {
 
 export const PACKS: PackChoice[] = [
   {
-    ref: 'eu-ai-act/art5@1',
+    ref: 'eu-ai-act/art5@2',
     title: 'EU AI Act · Art. 5 — prohibited practices',
     action: 'block',
     summary: 'emotion recognition at work, biometric categorisation, social scoring, exploiting a vulnerability',
   },
   {
-    ref: 'eu-ai-act/annex3@1',
+    ref: 'eu-ai-act/annex3@2',
     title: 'EU AI Act · Annex III — human oversight',
     action: 'escalate',
     summary: 'employment decisions, credit and insurance, essential services',
   },
   {
-    ref: 'gdpr/art9@1',
+    ref: 'gdpr/art9@2',
     title: 'GDPR · Art. 9 — special-category data',
     action: 'block',
     summary: 'health, pregnancy, religion, ethnicity, sexual orientation about an identifiable person',
   },
   {
-    ref: 'corporate/baseline@1',
+    ref: 'corporate/baseline@2',
     title: 'Company baseline',
     action: 'block',
     summary: 'credentials, harm',

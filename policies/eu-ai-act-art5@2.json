@@ -1,0 +1,36 @@
+{
+  "id": "eu-ai-act/art5",
+  "version": 2,
+  "title": "EU AI Act — prohibited practices (Art. 5)",
+  "model": "levanto/sage-2",
+  "rules": [
+    {
+      "id": "emotion_recognition_work",
+      "cite": "Art. 5(1)(f)",
+      "question": "Does the text ask to infer or monitor the emotions or emotional state of an employee, worker or student from their face, voice, writing or behaviour?",
+      "threshold": 50,
+      "action": "block"
+    },
+    {
+      "id": "biometric_categorisation",
+      "cite": "Art. 5(1)(g)",
+      "question": "Does the text ask to infer a person's race, ethnicity, political opinions, religion, trade-union membership, sex life or sexual orientation from their photo, voice, face or other biometric data?",
+      "threshold": 50,
+      "action": "block"
+    },
+    {
+      "id": "social_scoring",
+      "cite": "Art. 5(1)(c)",
+      "question": "Does the text ask to score, rank or classify people by their social behaviour or personal traits in a way that leads to unfavourable treatment of them?",
+      "threshold": 50,
+      "action": "block"
+    },
+    {
+      "id": "exploit_vulnerability",
+      "cite": "Art. 5(1)(b)",
+      "question": "Does the text ask to exploit a person's age, disability, poverty or other vulnerability to change their behaviour or decisions against their interest?",
+      "threshold": 50,
+      "action": "block"
+    }
+  ]
+}
