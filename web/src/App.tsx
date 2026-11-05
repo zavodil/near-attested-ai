@@ -29,8 +29,10 @@ function loadSettings(): SettingsValue {
     rows: DEFAULT_ROWS,
   };
   try {
-    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}');
-    return { ...fallback, ...saved, paymentKey: sessionStorage.getItem(PAYMENT_KEY) ?? '' };
+    const { build, ...saved } = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}');
+    // What a visitor set stands for the build they set it on: a build for another project starts from its own defaults.
+    const current = build === DEFAULT_PROJECT ? saved : {};
+    return { ...fallback, ...current, paymentKey: sessionStorage.getItem(PAYMENT_KEY) ?? '' };
   } catch {
     return fallback;
   }
@@ -38,7 +40,7 @@ function loadSettings(): SettingsValue {
 
 function saveSettings(s: SettingsValue) {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ networkId: s.networkId, projectId: s.projectId, secretsProfile: s.secretsProfile, rows: s.rows }));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ build: DEFAULT_PROJECT, networkId: s.networkId, projectId: s.projectId, secretsProfile: s.secretsProfile, rows: s.rows }));
     // The payment key lives for this tab only.
     sessionStorage.setItem(PAYMENT_KEY, s.paymentKey);
   } catch {

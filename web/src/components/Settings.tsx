@@ -8,7 +8,7 @@ export interface SettingsValue {
   paymentKey: string;
   /** The profile of the visitor's own secret row holding `NEARAI_API_KEY` (personal mode). */
   secretsProfile: string;
-  /** The rows a call names, `owner/profile, owner/profile`: the company's first, then the officers'. Empty: personal mode. */
+  /** The rows a call names, `owner/profile, owner/profile`: the officers', on a company's project. Empty: personal mode. */
   rows: string;
 }
 
@@ -22,7 +22,7 @@ export function settingsProblem(s: SettingsValue): string | null {
       return e instanceof Error ? e.message : String(e);
     }
   } else if (!s.secretsProfile.trim()) {
-    return 'Name the secrets profile that holds your NEARAI_API_KEY, or the company’s rows.';
+    return 'Name the secrets profile that holds your NEARAI_API_KEY, or the officers’ rows on a company’s project.';
   }
   return null;
 }
@@ -95,7 +95,7 @@ export function Settings({ value, onChange }: { value: SettingsValue; onChange: 
         />
       </label>
       <label className="grow" title="The company's row (NEARAI_API_KEY and COMPLIANCE_CONFIG) first, then the officers' rows; each must admit you by name. Leave empty to run on your own row">
-        <span>Company rows · owner/profile, owner/profile</span>
+        <span>Officers’ rows · owner/profile, owner/profile</span>
         <input value={value.rows} placeholder="compliance.acme.testnet/default, hr.acme.testnet/default" spellCheck={false} onChange={(e) => onChange({ ...value, rows: e.target.value })} />
       </label>
       {!value.rows.trim() && (
