@@ -2,11 +2,11 @@
  * The page's flows.
  *
  * `pinEnclave`: ask the project for its keys — the encryption key requests
- * are sealed to, the label key answers are signed with — and verify THAT
- * run's attestation before anything is sealed to them.
+ * are sealed to, the label key and the caller's own key answers are signed
+ * with — and verify THAT run's attestation before anything is sealed to them.
  *
  * `orgPolicy`: ask the project whose rules this call runs under: the
- * company's configuration from its row, or personal mode.
+ * company's configuration from the project's own row, or personal mode.
  *
  * `ask`: seal the request to the pinned key, run it, open the receipt with a
  * fresh reply key, and verify every claim the receipt makes. A prompt that
@@ -18,7 +18,7 @@
 import { sha256Hex } from './bytes';
 import { newReplyKey, openReceipt, sealTo, type ReplyKey } from './envelope';
 import type { Network } from './network';
-import { fetchAttestation, runProject, type SecretsRef } from './outlayer';
+import { callOutput, fetchAttestation, runProject, type SecretsRef } from './outlayer';
 import { parseReceipt, type EscalatedOutput, type LabelBody, type Mode, type Receipt, type SealedOutput } from './receipt';
 import { verifyLabel } from './verify/label';
 import { verifyModelCall, verifyPackOnChain, verifyPolicy } from './verify/model';
@@ -29,13 +29,16 @@ export interface Target {
   network: Network;
   projectId: string;
   paymentKey: string;
-  /** The secret rows the call names, in order: the company's first, then the officers'; or the visitor's own. */
+  /** The secret rows the call names, in order: the officers', in a company's project; or the visitor's own. */
   rows: SecretsRef[];
 }
 
 export interface PinnedEnclave {
   pubkey: string;
   labelPubkey: string;
+  callerPubkey: string;
+  /** The attested call the keys were pinned from. */
+  callId: string;
   proof: ProofGroup;
 }
 
@@ -83,19 +86,20 @@ export interface Outcome {
 export async function pinEnclave(target: Target, onStatus?: (s: string) => void): Promise<PinnedEnclave> {
   const input = { op: 'enclave_key' };
   const { callId, output } = await runProject(target.network, target.projectId, target.paymentKey, input, target.rows, onStatus);
-  const keys = output as { enclave_pubkey?: string; label_pubkey?: string; error?: string };
-  if (!keys?.enclave_pubkey || !keys.label_pubkey) throw new Error(keys?.error ?? 'the project answered no keys');
+  const keys = output as { caller_pubkey?: string; enclave_pubkey?: string; label_pubkey?: string; error?: string };
+  if (!keys?.enclave_pubkey || !keys.label_pubkey || !keys.caller_pubkey) throw new Error(keys?.error ?? 'the project answered no keys');
 
   onStatus?.('verifying');
   const attestation = await fetchAttestation(target.network, callId);
   const proof = await verifyOutlayerRun(target.network, attestation, input, output, { id: 'enclave-key', title: 'Enclave keys' }, [
     check(/^0[23][0-9a-f]{64}$/.test(keys.enclave_pubkey), 'The encryption key is a secp256k1 point', `${keys.enclave_pubkey.slice(0, 10)}…`, 'not a compressed secp256k1 key'),
     check(/^[0-9a-f]{64}$/.test(keys.label_pubkey), 'The label key is an ed25519 key', `${keys.label_pubkey.slice(0, 10)}…`, 'not a 32-byte ed25519 key'),
+    check(/^[0-9a-f]{64}$/.test(keys.caller_pubkey), 'The caller’s key is an ed25519 key', `${keys.caller_pubkey.slice(0, 10)}…`, 'not a 32-byte ed25519 key'),
   ]);
   if (proof.verdict === 'fail') {
     throw new Error('The enclave keys’ attestation did not verify, so nothing will be sealed to them.');
   }
-  return { pubkey: keys.enclave_pubkey, labelPubkey: keys.label_pubkey, proof };
+  return { pubkey: keys.enclave_pubkey, labelPubkey: keys.label_pubkey, callerPubkey: keys.caller_pubkey, callId, proof };
 }
 
 export async function orgPolicy(target: Target, onStatus?: (s: string) => void): Promise<OrgPolicy> {
@@ -160,7 +164,7 @@ export async function awaitApproval(
   for (;;) {
     onStage('await', `waiting for ${escalation.officer}`);
     const { output } = await runProject(target.network, target.projectId, target.paymentKey, { op: 'task_status', task_id: escalation.taskId }, target.rows);
-    const status = output as { state?: string; run?: string; result?: SealedOutput; failure_reason?: string; rejection?: string; error?: string };
+    const status = output as { state?: string; run?: string; result?: { receipt_digest?: string }; failure_reason?: string; rejection?: string; error?: string };
     if (status?.error) throw new Error(status.error);
     switch (status?.state) {
       case 'open':
@@ -171,8 +175,13 @@ export async function awaitApproval(
         await new Promise((resolve) => setTimeout(resolve, POLL_TASK_EVERY_MS));
         continue;
       case 'done': {
-        if (!status.result?.sealed || !status.result.receipt_digest || !status.run) throw new Error('the task ended done without a sealed receipt');
-        return openAndVerify(target, enclave, reply, status.run, null, status.result, onStage, escalation);
+        if (!status.result?.receipt_digest || !status.run) throw new Error('the task ended done without naming its receipt');
+        // The sealed receipt is the run's output, under its attestation; the
+        // task keeps its digest, which must be this one.
+        const sealed = (await callOutput(target.network, target.paymentKey, status.run)) as SealedOutput & { error?: string };
+        if (sealed?.error) throw new Error(sealed.error);
+        if (!sealed?.sealed || sealed.receipt_digest !== status.result.receipt_digest) throw new Error('the run’s output is not the receipt the task names');
+        return openAndVerify(target, enclave, reply, status.run, null, sealed, onStage, escalation);
       }
       case 'rejected':
         throw new Error(`${escalation.officer} rejected the request${status.rejection ? `: ${status.rejection}` : ''}`);
@@ -199,7 +208,8 @@ async function openAndVerify(
   onStage('verify', 'Fetching OutLayer’s TDX attestation for this call');
   const attestation = await fetchAttestation(target.network, callId);
   onStage('verify', 'Checking OutLayer’s Intel quote, its worker build, and that it covers exactly this output');
-  const output: SealedOutput = { receipt_digest: sealed.receipt_digest, sealed: sealed.sealed };
+  // The output as the run left it, every member: the attested hash is over all of them.
+  const output: SealedOutput = sealed;
   const proofs: ProofGroup[] = [
     await verifyOutlayerRun(target.network, attestation, input, output, { id: 'outlayer-run', title: approved ? 'OutLayer enclave · the run after the approval' : 'OutLayer enclave' }, [
       check(sha256Hex(receiptBytes) === sealed.receipt_digest, 'The receipt is the attested output', 'sha256(receipt) = the digest in the attested output', 'the receipt does not hash to the attested digest'),
@@ -235,8 +245,8 @@ async function openAndVerify(
     onStage('verify', `Checking ${receipt.answer.call.model}: Intel quote, NVIDIA’s GPU verdict, the answer’s signature`);
     proofs.push(await verifyModelCall(receipt.answer.call, receipt, 'answer'));
   }
-  onStage('verify', 'Checking the label’s signature against the pinned label key');
-  const { label, steps: labelSteps } = verifyLabel(receipt, enclave.labelPubkey);
+  onStage('verify', 'Checking the label’s signatures against the pinned keys');
+  const { label, steps: labelSteps } = verifyLabel(receipt, enclave.labelPubkey, enclave.callerPubkey);
   proofs.push({
     id: 'label',
     title: 'Signed label',
@@ -245,6 +255,7 @@ async function openAndVerify(
     steps: labelSteps,
     facts: [
       { label: 'Signed with', value: receipt.label.public_key, mono: true },
+      { label: 'And by the caller', value: label?.caller_key ?? '—', mono: true },
       { label: 'Outcome', value: label?.outcome ?? '—' },
       ...(label?.org ? [{ label: 'Organisation', value: label.org }] : []),
     ],

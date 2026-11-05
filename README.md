@@ -31,13 +31,15 @@ It runs end to end on NEAR testnet, from a static page with no backend.
 
 ## Whose rules apply
 
-A call names secret rows under the project (`secrets_refs`). The row that
-holds both the NEAR AI key and `COMPLIANCE_CONFIG` is the **company's**: only
-its owner's account could have stored it, so that account is the
-organisation, and its configuration is applied whatever the page asks — the
-packs, the allowed models, which officer takes which escalation. Employees
-are the accounts the row admits by name, each calling with their own payment
-key, so the label's `caller` is proven, not asserted.
+A company runs this build as **a project of its own account**, the same wasm
+with the same hash. Its row, stored under that project with the profile
+`company` (`author_secrets` in the manifest), holds the NEAR AI key and
+`COMPLIANCE_CONFIG`. The worker opens that row on every run, whatever the call
+names, and the configuration is applied whatever the page asks: the packs, the
+allowed models, which officer takes which escalation. The project's owner is the
+organisation, the one account that could have stored the row. Employees are the
+accounts the row admits by name, each calling with their own payment key. A
+stranger is refused before anything runs.
 
 ```json
 COMPLIANCE_CONFIG = {
@@ -50,14 +52,19 @@ COMPLIANCE_CONFIG = {
 
 An officer owns a row of their own under the project — empty, `{}` — whose
 condition admits the employees whose escalations they take. The employee's
-call names the company's row and the officers'; an escalation opens a task
-for the officer's row, and the run that answers after their yes is started
-with every row named again.
+call names the officers' rows; an escalation opens a task for the officer's
+row, and the run that answers after their yes is started with every row named
+again.
 
-A call whose rows hold a key and no configuration runs in **personal mode**:
-the page lets you pick the packs, and every label says `mode: personal` — a
-company's gate refuses it. `VITE_DEMO_MODE=0` hides personal mode from the
-page; the enclave decides the mode from the rows either way.
+An employee cannot bring rules of their own. A name in a row of theirs that the
+company's row also holds refuses the run, and a `COMPLIANCE_CONFIG` from any row
+a call names is refused by the module, on every project.
+
+A project whose row holds no configuration runs in **personal mode**: the
+caller's row holds the key, the page lets you pick the packs, and every label
+says `mode: personal`. It is signed with that project's key, so a company's
+gate refuses it at the signature. `VITE_DEMO_MODE=0` hides personal mode from
+the page; the enclave decides the mode from the project either way.
 
 ## What the demo does
 
@@ -96,7 +103,7 @@ in about 20–30 seconds with every proof green and a label a gate accepts.
 ### Every run, step by step
 
 1. **Pin.** The page asks the project for its keys — the encryption key
-   requests are sealed to, the ed25519 key labels are signed with — and checks
+   requests are sealed to, the two ed25519 keys labels are signed with — and checks
    that call's Intel TDX attestation *before* encrypting anything.
 2. **Whose rules.** The page asks the enclave which mode this call runs in,
    attested the same way, and shows the company's configuration read-only.
@@ -130,7 +137,7 @@ data alone. **Copy label** gives a gate what it needs and nothing more.
 {
   "format": "outlayer-attested-ai-label/1",
   "mode": "company", "org": "compliance.acme.testnet", "config_sha256": "…",
-  "project": "zavodil2.testnet/compliance-gateway", "caller": "employee.testnet", "call_id": "…",
+  "project": "compliance.acme.testnet/compliance-gateway", "caller": "employee.testnet", "caller_key": "…", "call_id": "…",
   "issued_at": 1793652984,
   "outcome": "answered",
   "packs": [{"id": "eu-ai-act/annex3", "version": 1, "sha256": "…", "registry": "…", "block_height": 123, "verdict": "escalated"}],
@@ -142,13 +149,29 @@ data alone. **Copy label** gives a gate what it needs and nothing more.
 }
 ```
 
-Signed with ed25519 over `"outlayer-attested-ai-label/1\n"` and the label's
-exact bytes, by a key the keystore derives inside the TEE for this project
-and this caller; the enclave never sees it. A gate pins the key from the
-attested `enclave_key` call and then checks labels offline: the
-organisation, the packs it requires and that they passed, the outcome, the
-approval. It never sees the prompt. The page has such a gate under every
-answer to try.
+Signed twice with ed25519 over `"outlayer-attested-ai-label/1\n"` and the
+label's exact bytes, by two keys the keystore derives inside the TEE; the
+enclave never sees either.
+
+- The **company's key**: one for the project, whoever calls (`"caller": "none"`).
+  Each company runs its own project, so a gate pins one key per company, from
+  any attested `enclave_key` call, and a label that verifies under it came from
+  that company's project.
+- The **employee's key**: one for each account of the project (the default,
+  `"caller": "signer"`). The keystore derives it for the account that started
+  the run, so no code of the project can sign under an employee's key in anyone
+  else's run. A gate that knows its employees' keys tells who asked from the
+  signature, not from the `caller` field.
+
+A gate checks labels offline: the keys, the organisation, the packs it requires
+and that they passed, the outcome, the approval, optionally that the screen ran
+in a TEE. It never sees the prompt. The page has such a gate under every answer
+to try.
+
+Both keys survive every version of the project, and the project's owner can
+publish a version. What a gate does not take on trust it checks on the strict
+path: the attestation of the label's `call_id` names the build that ran, which
+it holds to the published hash.
 
 ## What is proven, and how
 
@@ -162,7 +185,8 @@ answer to try.
 | The model ran in Intel TDX, attested for this request | NEAR AI's TDX quote for the model. `report_data` = signing address ‖ zero pad ‖ nonce, where nonce = sha256(exact request bytes). | Intel DCAP, with collateral the enclave fetched from Intel PCS. |
 | The model's GPUs are genuine and in confidential mode | NVIDIA NRAS token for evidence taken for that nonce | ES384 signature against NVIDIA's published JWKS; `x-nvidia-overall-att-result == true` |
 | This answer came from that model's TEE | EIP-191 signature over `model:sha256(request):sha256(response)` | secp256k1 recovery. The signer must be the attested address, and `signature_kind` must be `provider_tee`. |
-| The label is the enclave's, about this receipt | ed25519 over the label's bytes; the commitment, the answer hash, the packs, the outcome, the approval | The pinned label key; SHA-256 |
+| The label is the company's project's, about this receipt | ed25519 over the label's bytes; the commitment, the answer hash, the packs, the outcome, the approval | The pinned label key; SHA-256 |
+| The employee named asked | The second ed25519 signature over the same bytes | The employee's key, pinned from their attested `enclave_key` call |
 | The answer after an escalation came from the officer's yes | The approval in the label and the receipt; the run's attestation | The officer's wallet signature was verified by the enclave that took the task; the page checks the run's attestation covers the output |
 
 The enclave runs the model-side checks before sealing the receipt, and the page
@@ -171,7 +195,10 @@ shows both verdicts ("also verified in enclave").
 **The rule that keeps it honest.** The answering model must have a
 NEAR-operated TEE report (`/v1/attestation/report?provider=near`). Otherwise the
 enclave refuses the run *before the prompt is sent*. A decision model may be an
-external provider, and the label then says `screening_attested: false`.
+external provider, and the label then says `screening_attested: false`. A pack
+with `"via": "chat"`, or a configuration with `"screening_tee": true`, refuses
+that too: the screen runs in a TEE, the receipt carries its evidence, and the page
+checks it like the answer's.
 
 ---
 
@@ -179,8 +206,7 @@ external provider, and the label then says `screening_attested: false`.
 
 | Gap | Today | What closes it |
 |---|---|---|
-| The screening model is not in a TEE | NEAR AI serves `levanto/sage-1.4` as an external provider. The label says so. | A decision model served from NEAR AI's own TEE fleet |
-| The label key is per caller | The keystore derives it for the project and the caller; a gate pins one key per employee, from that employee's attested `enclave_key` call | A project-wide signing key (`caller: "none"`), planned on the platform |
+| The calibrated screening model is not in a TEE | NEAR AI serves `levanto/sage-1.4` as an external provider, and its TEE models refuse the decisions endpoint. The label says so. The TEE packs ask a model in a TEE through a chat completion instead. | A decision model served from NEAR AI's own TEE fleet, or calibration prompts for the TEE packs |
 | The gate trusts the key it pinned | The page pins it after verifying the attestation; an offline gate trusts whoever pinned it for them | A gate that verifies the `enclave_key` attestation itself, from the same public data |
 | No audit log for the company | Receipts go to the employee's browser only; the company sees who called, when, and the envelopes | Receipts sealed to a company audit key, in project storage |
 | Metadata | The operator still sees who paid, when, and how big the envelopes were | Inherent in a metered service |
@@ -223,12 +249,12 @@ a client of your own must do the same.
   from (project, caller). It is never stored anywhere. Every run of the project
   for the same caller gets the same key; no other caller or project can open
   what was sealed to it.
-- **Label key.** An ed25519 key derived the same way; the enclave signs with
-  it through the host and never sees it.
+- **Label keys.** Two ed25519 keys derived the same way, the project's and the
+  caller's; the enclave signs with them through the host and never sees them.
 - **Reply key.** Generated per request in the browser tab. It never leaves the
   tab; an escalation's answer is sealed to the same key after the officer's yes.
-- **NEAR AI key.** The company's, in its row, decrypted only inside the
-  enclave; in personal mode, the caller's own.
+- **NEAR AI key.** The company's, in its project's row, decrypted only inside
+  the enclave; in personal mode, the caller's own.
 
 ### The registry
 
@@ -263,7 +289,10 @@ web/        the page: Vite + React + TypeScript, no backend
 
 ## The deployed demo
 
-- **OutLayer project:** `zavodil2.testnet/compliance-gateway` (testnet).
+- **OutLayer projects (testnet):** `outlayer-elena.testnet/compliance-gateway`
+  is the company; `outlayer-elena.testnet/compliance-gateway-tee` is the same
+  company's build with the TEE packs; `zavodil2.testnet/compliance-gateway`
+  holds no configuration and runs personal mode.
 - **Active version:** the sha256 of `module/`'s build at this commit, printed
   by `module/build.sh`, which pins the toolchain and rewrites local paths so
   the same `rust-toolchain.toml` and `Cargo.lock` give the same bytes. Compare
@@ -271,27 +300,49 @@ web/        the page: Vite + React + TypeScript, no backend
   `https://testnet-api.outlayer.ai/attestations/by-call/<call_id>`.
 - **The page:** GitHub Pages, built by `.github/workflows/pages.yml`. A personal
   link fills in everything, including a small payment key (see below) and the
-  company's rows. Opened without one, the page asks for your own key.
+  officers' rows. Opened without one, the page asks for your own key.
+
+## The company's day, with its evidence
+
+`demo/` runs one company on testnet: accounts named by position (`demo/roles.json`),
+an officer per rule, and every request kept as evidence anyone can check.
+
+```bash
+demo/setup.sh                               # a person: creates the accounts, funds them, buys payment keys into demo/accounts.env
+demo/publish.sh                             # the company's projects and rows
+cd web
+npx vite-node ../demo/scenario.ts           # the day, kept in demo/evidence
+npx vite-node ../demo/verify.ts --strict    # recomputes everything from those files
+```
+
+`demo/evidence/index.html` and `ledger.csv` say, per request, who asked and in what
+position, the outcome, the rules that fired, who approved, whether each signature
+holds, whether the attestation does, and what the company's gate decided. They hold
+no prompt. `people.json` and `pins/` are the keys and the attested calls they were
+pinned from; `scenes/*/label.json` is what a gate is handed, and the files beside it
+are what an auditor is handed. `verify.ts` adds a forged label to show what one looks
+like.
 
 ## Run it yourself
 
 You need:
 - an OutLayer payment key (`owner:nonce:secret`, from [app.outlayer.ai](https://app.outlayer.ai));
-- either the company's rows, which admit you by name, or your own NEAR AI
-  Cloud key stored at app.outlayer.ai as a secret under the project, with
-  variable `NEARAI_API_KEY` in a profile of your choice.
+- either a company's project, whose row admits you by name, or your own NEAR AI
+  Cloud key stored at app.outlayer.ai as a secret under the personal project,
+  with variable `NEARAI_API_KEY` in a profile of your choice.
 
 ```bash
 cd web
 npm install
 npm test
-VITE_PROJECT_ID=zavodil2.testnet/compliance-gateway VITE_SECRETS_ROWS="compliance.acme.testnet/default,hr.acme.testnet/default" npm run dev
+VITE_PROJECT_ID=compliance.acme.testnet/compliance-gateway VITE_SECRETS_ROWS="hr.acme.testnet/default" npm run dev
 ```
 
-Paste your payment key into the settings bar and ask. To be a company: store
-`NEARAI_API_KEY` and `COMPLIANCE_CONFIG` in one row under the project, with a
-whitelist of your employees; have each officer store `{}` in a row of their
-own with a whitelist of the employees whose escalations they take.
+Paste your payment key into the settings bar and ask. To be a company: publish
+this build as a project of your account; store `NEARAI_API_KEY` and
+`COMPLIANCE_CONFIG` under it with the profile `company` and a whitelist of your
+employees; have each officer store `{}` in a row of their own under it with a
+whitelist of the employees whose escalations they take.
 
 ### Build the module
 

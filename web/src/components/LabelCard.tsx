@@ -1,19 +1,38 @@
 import { useMemo, useState } from 'react';
 import type { LabelBody, SignedLabel } from '../lib/receipt';
-import { gate, labelSignatureHolds } from '../lib/verify/label';
+import { callerSignatureHolds, gate, labelSignatureHolds } from '../lib/verify/label';
 import { short } from '../lib/verify/types';
 
 /**
  * The signed label, and a gate to try it on: what a system that takes AI
  * output would check — nothing of the prompt, just the label's bytes, the
- * key pinned from the attested enclave_key call, and what it requires.
+ * keys pinned from the attested enclave_key call, and what it requires. The
+ * organisation it requires is the owner of the project this page pinned, never
+ * what the label says.
  */
-export function LabelCard({ signed, label, labelPubkey }: { signed: SignedLabel; label: LabelBody | null; labelPubkey: string | null }) {
+export function LabelCard({
+  signed,
+  label,
+  labelPubkey,
+  callerPubkey,
+  projectId,
+}: {
+  signed: SignedLabel;
+  label: LabelBody | null;
+  labelPubkey: string | null;
+  callerPubkey: string | null;
+  projectId: string;
+}) {
   const signatureOk = useMemo(() => (labelPubkey ? labelSignatureHolds(signed, labelPubkey) : false), [signed, labelPubkey]);
-  const [requireOrg, setRequireOrg] = useState<boolean>(label?.mode === 'company');
+  const callerSignatureOk = useMemo(() => (callerPubkey ? callerSignatureHolds(signed, callerPubkey) : false), [signed, callerPubkey]);
+  const company = projectId.split('/')[0] ?? '';
+  const [requireOrg, setRequireOrg] = useState<boolean>(true);
+  const [requireEmployee, setRequireEmployee] = useState<boolean>(true);
+  const [requireTee, setRequireTee] = useState<boolean>(false);
   const [required, setRequired] = useState<string[]>(label?.packs.map((p) => `${p.id}@${p.version}`) ?? []);
-  const verdict = gate(label, signatureOk, { org: requireOrg ? (label?.org ?? '—') : null, packs: required });
-  const copy = () => navigator.clipboard?.writeText(JSON.stringify({ label: signed, label_pubkey: labelPubkey }, null, 2));
+  const employees = requireEmployee && label?.caller && callerPubkey ? { [label.caller]: callerPubkey } : requireEmployee ? {} : undefined;
+  const verdict = gate(label, signatureOk, { org: requireOrg ? company : null, packs: required, screeningInTee: requireTee, employees }, signed);
+  const copy = () => navigator.clipboard?.writeText(JSON.stringify({ label: signed, label_pubkey: labelPubkey, caller_pubkey: callerPubkey }, null, 2));
 
   const allPacks = label?.packs ?? [];
   return (
@@ -24,6 +43,9 @@ export function LabelCard({ signed, label, labelPubkey }: { signed: SignedLabel;
           <p>
             Signed by the enclave with the pinned label key · ed25519 <span className="mono">{short(signed.public_key, 8)}</span>
             {signatureOk ? ' · signature verifies' : ' · signature does not verify'}
+            {' · '}
+            {label?.caller ?? 'the caller'}’s own key <span className="mono">{short(label?.caller_key ?? '', 8)}</span>
+            {callerSignatureOk ? ' verifies' : ' does not verify'}
           </p>
         </div>
         <button className="secondary" onClick={copy}>
@@ -68,14 +90,22 @@ export function LabelCard({ signed, label, labelPubkey }: { signed: SignedLabel;
         <h3>Try a gate</h3>
         <p className="gate-lede">A downstream system accepts this answer only if the label shows:</p>
         <div className="gate-rules">
-          {label?.mode === 'company' && (
-            <label className="gate-rule">
-              <input type="checkbox" checked={requireOrg} onChange={(e) => setRequireOrg(e.target.checked)} />
-              <span>
-                the organisation is <strong>{label.org}</strong>
-              </span>
-            </label>
-          )}
+          <label className="gate-rule">
+            <input type="checkbox" checked={requireOrg} onChange={(e) => setRequireOrg(e.target.checked)} />
+            <span>
+              the organisation is <strong>{company}</strong>
+            </span>
+          </label>
+          <label className="gate-rule">
+            <input type="checkbox" checked={requireEmployee} onChange={(e) => setRequireEmployee(e.target.checked)} />
+            <span>
+              signed with the key of <strong>{label?.caller ?? 'the caller'}</strong>, the employee this gate knows
+            </span>
+          </label>
+          <label className="gate-rule">
+            <input type="checkbox" checked={requireTee} onChange={(e) => setRequireTee(e.target.checked)} />
+            <span>every decision model ran in a TEE</span>
+          </label>
           {allPacks.map((p) => {
             const ref = `${p.id}@${p.version}`;
             return (
@@ -86,7 +116,7 @@ export function LabelCard({ signed, label, labelPubkey }: { signed: SignedLabel;
                   onChange={(e) => setRequired(e.target.checked ? [...required, ref] : required.filter((r) => r !== ref))}
                 />
                 <span>
-                  <span className="mono">{ref}</span> passed
+                  <span className="mono">{ref}</span> passed{p.verdict === 'escalated' && label?.approval ? ', or an officer approved it' : ''}
                 </span>
               </label>
             );
@@ -101,7 +131,7 @@ export function LabelCard({ signed, label, labelPubkey }: { signed: SignedLabel;
           {!verdict.accepted && <span> — {verdict.reasons.join('; ')}</span>}
         </div>
         <p className="gate-note">
-          The gate needs the label’s bytes and the label key pinned from an attested <span className="mono">enclave_key</span> call. It never sees the
+          The gate needs the label’s bytes and the keys pinned from an attested <span className="mono">enclave_key</span> call. It never sees the
           prompt. An auditor asks the registry on NEAR for each pack’s hash, and OutLayer for the call’s attestation.
         </p>
       </div>

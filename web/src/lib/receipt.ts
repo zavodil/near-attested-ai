@@ -115,6 +115,7 @@ export interface CompanyConfig {
   models?: string[];
   escalate: Record<string, string>;
   registry?: string;
+  screening_tee?: boolean;
 }
 
 export interface Approval {
@@ -124,11 +125,14 @@ export interface Approval {
   task_id: string;
 }
 
-/** The label as signed: the exact bytes, and the signature with the key that made it. */
+/** The label as signed: the exact bytes, and both signatures over them. */
 export interface SignedLabel {
   body: string;
+  /** With the project's `label` key: a company's project is the company. */
   signature: string;
   public_key: string;
+  /** With the caller's own key, the one the body names as `caller_key`. */
+  caller_signature: string;
 }
 
 export interface PackApplied {
@@ -148,6 +152,7 @@ export interface LabelBody {
   config_sha256?: string;
   project: string | null;
   caller: string | null;
+  caller_key: string;
   call_id: string | null;
   issued_at: number;
   outcome: 'answered' | 'blocked' | 'escalated';

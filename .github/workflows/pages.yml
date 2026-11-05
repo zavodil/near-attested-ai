@@ -38,7 +38,7 @@ jobs:
       - run: npm run build
         env:
           VITE_OUTLAYER_NETWORK: testnet
-          VITE_PROJECT_ID: zavodil2.testnet/compliance-gateway
+          VITE_PROJECT_ID: ${{ vars.VITE_PROJECT_ID || 'zavodil2.testnet/compliance-gateway' }}
           VITE_SECRETS_PROFILE: author
           # The company's row first, then the officers' (`owner/profile, owner/profile`):
           # a repository variable, not a secret — row names are public on chain.

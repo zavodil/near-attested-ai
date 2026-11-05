@@ -55,7 +55,31 @@ pub struct Pack {
     pub title: Option<String>,
     /// The decision model every rule of the pack is asked of.
     pub model: String,
+    /// How the model is asked.
+    #[serde(default, skip_serializing_if = "Via::is_decisions")]
+    pub via: Via,
     pub rules: Vec<Rule>,
+}
+
+/// How a pack's model is asked its questions.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Via {
+    /// `/v1/systemone`: typed decisions with a calibrated probability, from a
+    /// model built for them. NEAR AI serves those outside its TEEs.
+    #[default]
+    Decisions,
+    /// `/v1/chat/completions`, with the questions in the instructions and the
+    /// prompt as data: for a model in a NEAR-operated TEE, and refused before
+    /// the prompt is sent to any other. The probability is the model's own
+    /// estimate, not a calibrated one.
+    Chat,
+}
+
+impl Via {
+    fn is_decisions(&self) -> bool {
+        *self == Via::Decisions
+    }
 }
 
 /// `id@version`, as a request or a configuration names a pack.
@@ -110,6 +134,28 @@ pub fn default_registry() -> String {
     }
 }
 
+/// A `query` answer as `near:rpc`'s `raw` hands it over, the whole JSON-RPC
+/// envelope: the view's bytes and the block they were read at.
+fn view_result(answer: &str) -> Result<(Vec<u8>, u64), String> {
+    let answer: Value = serde_json::from_str(answer).map_err(|e| format!("it does not read: {e}"))?;
+    if let Some(error) = answer.get("error") {
+        return Err(format!("it is an error: {error}"));
+    }
+    let result = answer.get("result").ok_or("it carries no result")?;
+    if let Some(error) = result.get("error").and_then(Value::as_str) {
+        return Err(format!("the view failed: {error}"));
+    }
+    let block_height = result.get("block_height").and_then(Value::as_u64).ok_or("it names no block")?;
+    let bytes = result
+        .get("result")
+        .and_then(Value::as_array)
+        .ok_or("it carries no bytes")?
+        .iter()
+        .map(|v| v.as_u64().and_then(|n| u8::try_from(n).ok()).ok_or("its bytes are not bytes"))
+        .collect::<Result<Vec<u8>, _>>()?;
+    Ok((bytes, block_height))
+}
+
 /// Read `reference` from `registry` at the chain's final block.
 pub fn load(registry: &str, reference: &PackRef) -> Result<Loaded, String> {
     let args = json!({ "id": reference.id, "version": reference.version }).to_string();
@@ -124,19 +170,7 @@ pub fn load(registry: &str, reference: &PackRef) -> Result<Loaded, String> {
     if !error.is_empty() {
         return Err(format!("the registry {registry} could not be read for {}: {error}", reference.name()));
     }
-    let answer: Value =
-        serde_json::from_str(&answer).map_err(|e| format!("the chain's answer for {} does not read: {e}", reference.name()))?;
-    let block_height = answer
-        .get("block_height")
-        .and_then(Value::as_u64)
-        .ok_or_else(|| format!("the chain's answer for {} names no block", reference.name()))?;
-    let bytes: Vec<u8> = answer
-        .get("result")
-        .and_then(Value::as_array)
-        .ok_or_else(|| format!("the chain's answer for {} carries no result", reference.name()))?
-        .iter()
-        .filter_map(|v| v.as_u64().map(|n| n as u8))
-        .collect();
+    let (bytes, block_height) = view_result(&answer).map_err(|e| format!("the chain's answer for {}: {e}", reference.name()))?;
     let stored: Option<Stored> = serde_json::from_slice(&bytes)
         .map_err(|e| format!("the registry's answer for {} does not read: {e}", reference.name()))?;
     let Some(stored) = stored else {
@@ -196,6 +230,17 @@ impl Pack {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The shape the chain answers, taken from a live `query` of the registry.
+    #[test]
+    fn a_view_is_read_out_of_the_whole_envelope() {
+        let live = r#"{"jsonrpc":"2.0","id":"x","result":{"block_hash":"H","block_height":276264666,"logs":[],"result":[110,117,108,108]}}"#;
+        assert_eq!(view_result(live).unwrap(), (b"null".to_vec(), 276264666));
+        assert!(view_result(r#"{"block_height":1,"result":[110]}"#).unwrap_err().contains("names no block"), "the inner shape alone is not the answer");
+        assert!(view_result(r#"{"error":{"code":-32000}}"#).unwrap_err().contains("error"));
+        assert!(view_result(r#"{"result":{"error":"wasm panicked","block_height":1,"logs":[]}}"#).unwrap_err().contains("wasm panicked"));
+        assert!(view_result(r#"{"result":{"block_height":1,"result":[300]}}"#).unwrap_err().contains("bytes"));
+    }
 
     pub const ART5: &str = r#"{"id":"eu-ai-act/art5","version":1,"title":"EU AI Act — prohibited practices (Art. 5)","model":"levanto/sage-1.4","rules":[{"id":"social_scoring","cite":"Art. 5(1)(c)","question":"Does the text ask to score people?","threshold":50,"action":"block"},{"id":"employment","cite":"Annex III(4)","question":"Does the text rank an employee?","threshold":50,"action":"escalate"}]}"#;
 

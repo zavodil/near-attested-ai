@@ -32,9 +32,17 @@
   "signing_keys": [
     {
       "path": "label",
+      "type": "ed25519",
+      "caller": "none"
+    },
+    {
+      "path": "caller",
       "type": "ed25519"
     }
   ],
   "tasks": true,
-  "secrets_refs": true
+  "secrets_refs": true,
+  "author_secrets": {
+    "profile": "company"
+  }
 }

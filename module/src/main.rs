@@ -8,10 +8,10 @@
 //!
 //! | `op` | input | output |
 //! |---|---|---|
-//! | `enclave_key` | — | `{enclave_pubkey, label_pubkey}`: the key requests are sealed to, and the key labels are signed with, for this project and this caller |
+//! | `enclave_key` | — | `{caller_pubkey, enclave_pubkey, label_pubkey}`: the key requests are sealed to and the key the caller's labels are co-signed with, both for this project and this caller, and the key labels are signed with, one for the project |
 //! | `org_policy` | — | the mode this call runs in (`personal`, or `company` with the organisation, its configuration's hash, its packs as the registry holds them, its officers) |
 //! | `ask` | `{sealed}`: the request, ECIES-sealed to the enclave key | `{receipt_digest, sealed}`: the receipt, ECIES-sealed to the caller's `reply_pubkey`, and its sha256; or `{status: "escalated", task_id, task_hash, officer, receipt_digest, sealed}` when the prompt waits for an officer |
-//! | `answer_escalated` | the platform's, on the officer's approval | `{receipt_digest, sealed}`, also reported to the task for `task_status` |
+//! | `answer_escalated` | the platform's, on the officer's approval | `{receipt_digest, sealed}`; the task keeps the digest, and `task_status` names this run, whose output the employee's payment key reads |
 //! | `task_status`, `task_cancel`, `task_delete`, `tasks`, `tasks_unlock` | the SDK's | the SDK's |
 //!
 //! The coordinator relays and stores only envelopes. Inside the enclave an
@@ -21,10 +21,10 @@
 //! — checks the model's attestation (Intel TDX quote, NVIDIA GPU verdict,
 //! response signature), signs the label, and seals the receipt back.
 //!
-//! Whose rules apply is the rows' doing (`config`): a call on a company's
-//! row runs under the company's configuration; a call on the caller's own
-//! key runs the packs the request names, in personal mode, and the label
-//! says which.
+//! Whose rules apply is the project's doing (`config`): a company runs this
+//! build as a project of its own, and every call runs under the configuration
+//! its row holds; a project whose row holds none runs the packs the request
+//! names, on the caller's own key, in personal mode, and the label says which.
 //!
 //! The network is the manifest's four hosts: NEAR AI (120 s a request),
 //! Intel PCS and its CRL host, NVIDIA's attestation service; the registry is
@@ -63,7 +63,8 @@ use sha2::{Digest, Sha256};
 
 /// The manifest, embedded so the project's wasm hash covers it: the outbound
 /// allowlist with NEAR AI's request time, the `inbox` encryption key, the
-/// `label` signing key, and that the project leaves tasks.
+/// `label` and `caller` signing keys, the project's own row, and that the
+/// project leaves tasks.
 #[cfg(target_family = "wasm")]
 #[used]
 #[link_section = "outlayer.manifest"]
@@ -126,7 +127,7 @@ fn main() {
 fn run(op: &str, input: &[u8]) -> Result<Value, String> {
     let now = unix_now();
     match op {
-        "enclave_key" => Ok(json!({ "enclave_pubkey": envelope::enclave_public_key()?, "label_pubkey": label::public_key()? })),
+        "enclave_key" => Ok(json!({ "caller_pubkey": label::caller_public_key()?, "enclave_pubkey": envelope::enclave_public_key()?, "label_pubkey": label::public_key()? })),
         "org_policy" => org_policy(),
         "ask" => {
             let ask: Ask = serde_json::from_slice(input).map_err(|e| format!("`ask` takes `sealed` and nothing else: {e}"))?;
@@ -178,7 +179,10 @@ fn ask(sealed: &str, now: u64) -> Result<Value, String> {
     let loaded = refs.iter().map(|reference| pack::load(&registry, reference)).collect::<Result<Vec<_>, _>>()?;
     let screening = match loaded.is_empty() {
         true => None,
-        false => Some(screening::screen(&api, &request.prompt, &loaded, now)?),
+        false => {
+            let tee_only = matches!(&mode, Mode::Company(company) if company.config.screening_tee);
+            Some(screening::screen(&api, &request.prompt, &loaded, tee_only, now)?)
+        }
     };
 
     let (outcome, answer) = match (screening.as_ref().map(|s| s.verdict), &mode) {
@@ -263,6 +267,11 @@ mod tests {
         assert!(manifest["tasks"].as_bool() == Some(true));
         assert!(manifest["secrets_refs"].as_bool() == Some(true), "the company's and the officers' rows join");
         assert_eq!(manifest["signing_keys"][0]["path"], "label");
+        assert_eq!(manifest["signing_keys"][0]["caller"], "none", "one label key for the project, whoever calls");
+        assert_eq!(manifest["signing_keys"][1]["path"], "caller");
+        assert!(manifest["signing_keys"][1].get("caller").is_none(), "the caller's key belongs to the signer, the default");
+        assert_eq!(manifest["author_secrets"]["profile"], "company");
+        assert!(manifest["author_secrets"].get("owner").is_none(), "the row's owner is whoever publishes this build as a project");
         assert_eq!(manifest["encryption_keys"][0]["path"], "inbox");
         let nearai = manifest["capabilities"]["network"].as_array().unwrap().iter().find(|h| h["host"] == "cloud-api.near.ai").expect("NEAR AI's entry");
         assert_eq!(nearai["timeout_secs"], 120);

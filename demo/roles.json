@@ -1,0 +1,17 @@
+{
+  "network": "testnet",
+  "org_name": "Acme Demo",
+  "project": "compliance-gateway",
+  "tee_project": "compliance-gateway-tee",
+  "personal_project": "zavodil2.testnet/compliance-gateway",
+  "company": { "role": "company", "account": "acme-compliance.testnet", "position": "Compliance, owns the company's project and row" },
+  "employees": [
+    { "role": "recruiter", "account": "acme-recruiter.testnet", "position": "Recruiter" },
+    { "role": "analyst", "account": "acme-analyst.testnet", "position": "Credit analyst" }
+  ],
+  "officers": [
+    { "role": "hr_director", "account": "acme-hr-director.testnet", "position": "HR director", "takes": "employment_decision" },
+    { "role": "risk_officer", "account": "acme-risk-officer.testnet", "position": "Risk officer", "takes": "annex3" }
+  ],
+  "outsider": { "role": "former_employee", "account": "acme-former-employee.testnet", "position": "Former employee, not on the company's list" }
+}

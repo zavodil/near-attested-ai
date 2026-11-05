@@ -49,7 +49,7 @@ export const EXAMPLES: { label: string; prompt: string }[] = [
   {
     label: 'Needs an officer',
     prompt:
-      'Rank these three candidates for the promotion to team lead and tell me who to pick: Marco Rossi (8 years, strong delivery, two complaints about tone), Priya Nair (4 years, best reviews on the team, on parental leave until March), Tom Becker (6 years, average reviews, closest to the VP).',
+      'Rank these three candidates for the promotion to team lead and tell me who to pick: Marco Rossi (8 years, strong delivery, two complaints about tone), Priya Nair (4 years, best reviews on the team, joined the team last March), Tom Becker (6 years, average reviews, closest to the VP).',
   },
   {
     label: 'Should be blocked',

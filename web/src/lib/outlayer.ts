@@ -84,7 +84,7 @@ export async function runProject(
       input,
       async: true,
       resource_limits: { max_execution_seconds: 150 },
-      // One row as it always was; several in order, the first the company's.
+      // One row by `secrets_ref`, several in order by `secrets_refs`.
       ...(rows.length === 1 ? { secrets_ref: rows[0] } : rows.length > 1 ? { secrets_refs: rows } : {}),
     }),
   });
@@ -107,6 +107,15 @@ export async function runProject(
 }
 
 /** The attestation the worker uploads once the run has finished. */
+/** What a finished call of this payment key answered. */
+export async function callOutput(network: Network, paymentKey: string, callId: string): Promise<unknown> {
+  const answer = await fetch(`${network.api}/calls/${callId}`, { headers: { 'X-Payment-Key': paymentKey.trim() } });
+  const body = await readJson(answer);
+  if (!answer.ok) throw new Error(describe(body, answer.status));
+  if (body.status !== 'completed') throw new Error(`call ${callId} is ${body.status}${body.error ? `: ${body.error}` : ''}`);
+  return body.output;
+}
+
 export async function fetchAttestation(network: Network, callId: string): Promise<AttestationRecord> {
   const deadline = Date.now() + ATTESTATION_DEADLINE_MS;
   for (;;) {

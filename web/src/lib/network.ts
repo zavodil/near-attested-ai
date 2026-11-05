@@ -42,11 +42,11 @@ export const DEFAULT_SECRETS_PROFILE: string = import.meta.env.VITE_SECRETS_PROF
 export const SEALED_PAYMENT_KEY: string = import.meta.env.VITE_PAYMENT_KEY_SEALED ?? '';
 
 /**
- * The secret rows a call names, `owner/profile` joined with `,`: the
- * company's row (the NEAR AI key and `COMPLIANCE_CONFIG`) and the officers'
- * rows. Empty: the visitor's own row, named by the payment key's owner and
- * the profile above — personal mode.
+ * The secret rows a call names, `owner/profile` joined with `,`: the officers'
+ * rows, on a company's project, whose own row holds the NEAR AI key and
+ * `COMPLIANCE_CONFIG`. Empty: the visitor's own row, named by the payment key's
+ * owner and the profile above — personal mode.
  */
 export const DEFAULT_ROWS: string = import.meta.env.VITE_SECRETS_ROWS ?? '';
-/** Personal mode on the page: `VITE_DEMO_MODE=0` hides it, and the page runs on the company's rows only. */
+/** Personal mode on the page: `VITE_DEMO_MODE=0` hides it, and the page runs on a company's project only. */
 export const DEMO_MODE: boolean = import.meta.env.VITE_DEMO_MODE !== '0';

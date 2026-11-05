@@ -3,14 +3,18 @@
 //!
 //! The officer owns a secret row under this project that admits the
 //! employee by name — their consent to be asked — and the employee's call
-//! names it beside the company's row (`secrets_refs`). The task is opened
-//! for that row's owner (`open-for`): it lands in the officer's own inbox,
-//! and their wallet's signature approves it. The platform then runs
-//! `answer_escalated` as the employee's own run, with every row named again,
-//! the officer's first; that run takes back what was sealed here — the
-//! request and the screen as made — answers with the model, and seals the
-//! receipt to the employee's reply key, with the officer's approval in the
-//! label.
+//! names it (`secrets_refs`). The task is opened for that row's owner
+//! (`open-for`): it lands in the officer's own inbox, and their wallet's
+//! signature approves it. The platform then runs `answer_escalated` as the
+//! employee's own run, with every row named again, the officer's first; that
+//! run takes back what was kept here — the request, and the screen as made —
+//! answers with the model, and seals the receipt to the employee's reply key,
+//! with the officer's approval in the label.
+//!
+//! The screen stays whole for that receipt, and a screen in a TEE carries a
+//! report per pack, far over what a task seals: it waits in the employee's
+//! encrypted cell of the project's storage, under its hash, which the task's
+//! sealed state names. A task that ends without an answer leaves it there.
 //!
 //! The task is made under the company's configuration as its policy: a
 //! configuration changed since voids it.
@@ -33,13 +37,28 @@ pub const ANSWERED_BY: &str = "answer_escalated";
 /// shown cut, with the length said, and answered whole.
 const SHOWN_PROMPT_CHARS: usize = 20_000;
 
+fn screen_key(digest: &str) -> String {
+    format!("screen/{digest}")
+}
+
+/// The screen as stored: the bytes back under their hash, or why not.
+fn stored_screen(digest: &str) -> Result<Value, String> {
+    let bytes = outlayer::storage::get(&screen_key(digest))
+        .map_err(|e| format!("the screen this task was made with could not be read: {e}"))?
+        .ok_or("the screen this task was made with is no longer stored")?;
+    if sha256_hex(&bytes) != digest {
+        return Err("the stored screen is not the one this task was made with".to_string());
+    }
+    serde_json::from_slice(&bytes).map_err(|e| format!("the stored screen does not read: {e}"))
+}
+
 /// What waits sealed with the task, for the run that answers.
 #[derive(Serialize, Deserialize)]
 struct State {
     /// The request as opened, base64 of its JSON.
     request: String,
-    /// The screen as made, whole: the receipt after the yes carries it.
-    screening: Value,
+    /// The hash of the screen as made, the key it waits under in storage.
+    screening_sha256: String,
     summary: Summary,
     org: String,
     config_sha256: String,
@@ -82,15 +101,17 @@ pub fn open(
     let rows = outlayer::env::secrets_rows()?;
     if !rows.iter().any(|row| row.owner == officer) {
         return Err(format!(
-            "the prompt escalates to {officer}, whose row this call does not name: name it in `secrets_refs` beside {}'s",
-            company.org
+            "the prompt escalates to {officer}, whose row this call does not name: name it in `secrets_refs`"
         ));
     }
     let summary = screening.summary();
     let screening_value = serde_json::to_value(&screening).map_err(|e| format!("the screen does not encode: {e}"))?;
+    let screening_bytes = serde_json::to_vec(&screening_value).map_err(|e| format!("the screen does not encode: {e}"))?;
+    let screening_sha256 = sha256_hex(&screening_bytes);
+    outlayer::storage::set(&screen_key(&screening_sha256), &screening_bytes).map_err(|e| format!("the screen could not be kept for the officer's answer: {e}"))?;
     let state = State {
         request: BASE64.encode(request_bytes),
-        screening: screening_value.clone(),
+        screening_sha256,
         summary: summary.clone(),
         org: company.org.clone(),
         config_sha256: company.config_sha256.clone(),
@@ -159,14 +180,17 @@ fn display(request: &Request, fired: &[Fired], company: &Company) -> Display {
 /// `answer_escalated`: the employee's run on the officer's yes. Takes the
 /// sealed request and screen back, answers with the model, seals the
 /// receipt — the officer's approval in its label — to the employee's reply
-/// key, and reports it for the employee's page to collect.
+/// key. The sealed receipt is this run's output, under its attestation, which
+/// the employee's payment key reads; a receipt with its evidence is far over
+/// what a task keeps, so the task is told its digest and the run's id does the
+/// rest.
 pub fn answer(input: &Value, now: u64) -> Result<Value, tasks::Refused> {
     let answered = tasks::answered_for(ANSWERED_BY, input, &config::stored_config()).map_err(|e| e.refusal())?;
     let id = answered.id.clone();
     let result = answer_with(&answered, input, now);
     match &result {
         Ok(output) => {
-            let bytes = serde_json::to_vec(output).map_err(|e| format!("the output does not encode: {e}"))?;
+            let bytes = reported(output).map_err(|e| e.to_string())?;
             tasks::report(&id, &bytes).map_err(|e| e.refusal())?;
         }
         Err(refusal) => {
@@ -176,6 +200,12 @@ pub fn answer(input: &Value, now: u64) -> Result<Value, tasks::Refused> {
         }
     }
     result.map_err(tasks::Refused::from)
+}
+
+/// What the task keeps of a run's output: the digest of the sealed receipt.
+fn reported(output: &Value) -> Result<Vec<u8>, String> {
+    let digest = output.get("receipt_digest").and_then(Value::as_str).ok_or("the output names no receipt digest")?;
+    serde_json::to_vec(&serde_json::json!({ "receipt_digest": digest })).map_err(|e| format!("the digest does not encode: {e}"))
 }
 
 fn answer_with(answered: &tasks::Answer, input: &Value, now: u64) -> Result<Value, String> {
@@ -200,13 +230,14 @@ fn answer_with(answered: &tasks::Answer, input: &Value, now: u64) -> Result<Valu
         at: approval.at,
         task_id: answered.id.clone(),
     };
+    let screening = stored_screen(&state.screening_sha256)?;
     let api = nearai::Client::from_env()?;
     let answer: Answer = crate::answer(&api, &request, now)?;
     let receipt = Receipt::new(Parts {
         mode: &mode,
         outcome: Outcome::Answered,
         prompt: request.prompt.clone(),
-        screening: Some(state.screening),
+        screening: Some(screening),
         summary: Some(state.summary),
         answer: Some(answer),
         approval: Some(approval),
@@ -215,5 +246,27 @@ fn answer_with(answered: &tasks::Answer, input: &Value, now: u64) -> Result<Valu
     })?;
     let bytes = serde_json::to_vec(&receipt).map_err(|e| format!("the receipt does not encode: {e}"))?;
     let output = SealedReceipt { receipt_digest: sha256_hex(&bytes), sealed: BASE64.encode(crate::envelope::seal(&reply_pubkey, &bytes)?) };
-    serde_json::to_value(output).map_err(|e| format!("the output does not encode: {e}"))
+    let output = serde_json::to_value(output).map_err(|e| format!("the output does not encode: {e}"))?;
+    // The officer's yes is answered whatever happens to the kept copy: the
+    // answer goes out, and a copy that stays is encrypted in the employee's cell.
+    let _ = outlayer::storage::delete(&screen_key(&state.screening_sha256));
+    Ok(output)
+}
+
+#[cfg(test)]
+mod reported_tests {
+    use super::*;
+
+    /// A receipt with its evidence is far over the 16 KiB a task keeps: the
+    /// task is told the digest and nothing of the sealed receipt.
+    #[test]
+    fn the_task_keeps_the_digest_and_not_the_receipt() {
+        let output = serde_json::json!({ "receipt_digest": "ab".repeat(32), "sealed": "x".repeat(300_000) });
+        let bytes = reported(&output).unwrap();
+        assert!(bytes.len() < 200, "{}", bytes.len());
+        let told: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(told["receipt_digest"], "ab".repeat(32));
+        assert!(told.get("sealed").is_none());
+        assert!(reported(&serde_json::json!({ "sealed": "x" })).is_err());
+    }
 }

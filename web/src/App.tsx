@@ -46,7 +46,7 @@ function saveSettings(s: SettingsValue) {
   }
 }
 
-/** The rows a call names: the company's and the officers', or the visitor's own. */
+/** The rows a call names: the officers', on a company's project, or the visitor's own. */
 function rowsOf(s: SettingsValue): SecretsRef[] {
   if (s.rows.trim()) {
     try {
@@ -147,7 +147,7 @@ export function App() {
       }
       setPolicy(whose);
       if (whose.mode === 'personal' && !DEMO_MODE) {
-        throw new Error('This page runs on a company’s rows only, and the rows named hold no company configuration.');
+        throw new Error('This page runs on a company’s project only, and this project holds no company configuration.');
       }
       let result = await ask(
         target,
@@ -219,7 +219,7 @@ export function App() {
             <>
               <Answer outcome={outcome} network={settings.networkId} projectId={target.projectId} />
               <TrustChain proofs={proofs} outcome={outcome.receipt.outcome} />
-              <LabelCard signed={outcome.receipt.label} label={outcome.label} labelPubkey={enclave?.labelPubkey ?? null} />
+              <LabelCard signed={outcome.receipt.label} label={outcome.label} labelPubkey={enclave?.labelPubkey ?? null} callerPubkey={enclave?.callerPubkey ?? null} projectId={target.projectId} />
               <div className="proofs">
                 {proofs.map((group) => (
                   <ProofCard key={group.id + group.title} group={group} />

@@ -417,7 +417,8 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .gate h3 { margin: 0 0 4px; font-size: 14px; }
 .gate-lede, .gate-note { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
 .gate-rules { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-.gate-rule { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.gate-rule { display: flex; flex-direction: row; gap: 8px; align-items: center; font-size: 13px; }
+.gate-rule input { flex: none; }
 .gate-verdict { font-weight: 700; padding: 8px 12px; border-radius: 10px; margin-bottom: 8px; font-size: 14px; }
 .gate-verdict.accepted { background: var(--pass-bg); color: var(--pass); }
 .gate-verdict.refused { background: var(--fail-bg); color: var(--fail); }

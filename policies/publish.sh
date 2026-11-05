@@ -14,5 +14,5 @@ for file in *.json; do
     json-args "$(jq -c --arg i "$id" --argjson v "$version" '{id:$i, version:$v, bytes: (. | tojson)}' "$file")" \
     prepaid-gas '30.0 Tgas' attached-deposit '0.05 NEAR' \
     sign-as "$PUBLISHER" network-config "$NETWORK" sign-with-legacy-keychain send
-  echo "$id@$version: published, sha256 $(jq -c . "$file" | shasum -a 256 | cut -d' ' -f1)"
+  echo "$id@$version: published, sha256 $(jq -j tojson "$file" | shasum -a 256 | cut -d' ' -f1)"
 done

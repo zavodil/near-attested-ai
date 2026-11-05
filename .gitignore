@@ -8,3 +8,5 @@ dist/
 
 # The global gitignore of some machines ignores `test`; these are the page's tests.
 !test
+demo/evidence/
+demo/.state/

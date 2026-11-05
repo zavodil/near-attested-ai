@@ -1,16 +1,21 @@
 //! Whose rules apply: the company's, or the caller's own.
 //!
-//! A call names secret rows (`secrets_refs`). The row that holds both the
-//! NEAR AI key and `COMPLIANCE_CONFIG` is the company's: only its owner's
-//! account could have stored it, so that account is the organisation, and
-//! the configuration is applied whatever the request asks. A call whose rows
-//! hold a key and no configuration runs in personal mode: the request names
-//! its packs, and the label says so.
+//! A company runs this build as a project of its own account. Its row, stored
+//! under the accessor of that project with the profile the manifest names
+//! (`author_secrets`), holds the NEAR AI key and `COMPLIANCE_CONFIG`; the worker
+//! opens it on every run, whatever the call names, and judges its access
+//! condition against the caller, so the row's whitelist is who may run the
+//! project. A name a call's own row also holds refuses the run. So the project
+//! is the company: its `label` key is the company's and no other project's, and
+//! its owner, the one account that could store that row, is the organisation.
+//!
+//! A project whose row holds no configuration is in personal mode: the caller's
+//! row holds the key, the request names its packs, and the label says so.
 //!
 //! Which row supplied which variable is the worker's word
-//! (`OUTLAYER_SECRETS_ROWS`), never the configuration's: a row of the
-//! caller's own, named beside the company's, cannot pass its configuration
-//! off as the company's.
+//! (`OUTLAYER_SECRETS_ROWS`, which lists the rows the call named and never the
+//! project's own): a configuration from a row the call named is refused, here
+//! and on every project.
 
 use crate::pack::{PackRef, MAX_PACKS};
 use crate::sha256_hex;
@@ -42,6 +47,10 @@ pub struct Config {
     /// The registry the packs are read from; the network's default when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registry: Option<String>,
+    /// Every pack's decision model must run in a NEAR-operated TEE: a pack
+    /// whose model does not is refused before the prompt is sent to it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub screening_tee: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -53,7 +62,7 @@ pub enum Mode {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Company {
-    /// The account that stored the row: the organisation.
+    /// The project's owner, the account that stored its row: the organisation.
     pub org: String,
     pub config: Config,
     /// SHA-256 of `COMPLIANCE_CONFIG` as stored, lowercase hex.
@@ -96,22 +105,31 @@ impl Config {
 /// The mode this run is in, from the rows the worker opened.
 pub fn detect() -> Result<Mode, String> {
     let rows = env::secrets_rows()?;
-    let holds = |row: &env::SecretsRow, name: &str| row.keys.iter().any(|k| k == name);
-    let key_row = rows.iter().find(|row| holds(row, KEY_VAR));
-    let config_row = rows.iter().find(|row| holds(row, CONFIG_VAR));
-    match (key_row, config_row) {
-        (_, None) => Ok(Mode::Personal),
-        (Some(key), Some(config)) if key.owner == config.owner && key.profile == config.profile => {
-            let bytes = env::var(CONFIG_VAR).unwrap_or_default();
-            let parsed = Config::parse(bytes.as_bytes())?;
-            Ok(Mode::Company(Company { org: config.owner.clone(), config: parsed, config_sha256: sha256_hex(bytes.as_bytes()) }))
-        }
-        (_, Some(config)) => Err(format!(
-            "{CONFIG_VAR} comes from {}/{}, which holds no {KEY_VAR}: a company's configuration is applied from the row \
-             that also holds the company's key",
-            config.owner, config.profile
-        )),
+    let config = env::var(CONFIG_VAR);
+    let owner = env::var("OUTLAYER_PROJECT_OWNER");
+    resolve(&rows, config.as_deref(), owner.as_deref())
+}
+
+/// `rows` are the rows the call named, `config` the variable as the run holds
+/// it: from one of those rows, or else from the project's own.
+fn resolve(rows: &[env::SecretsRow], config: Option<&str>, project_owner: Option<&str>) -> Result<Mode, String> {
+    let holds = |name: &str| rows.iter().find(|row| row.keys.iter().any(|k| k == name));
+    if let Some(row) = holds(CONFIG_VAR) {
+        return Err(format!(
+            "{CONFIG_VAR} comes from {}/{}, a row this call names: a company's configuration is the row its project's owner stores \
+             under the project. To run your own rules, publish this build as a project of your own",
+            row.owner, row.profile
+        ));
     }
+    let Some(config) = config else { return Ok(Mode::Personal) };
+    if let Some(row) = holds(KEY_VAR) {
+        return Err(format!(
+            "{KEY_VAR} comes from {}/{}, a row this call names: under a company's configuration the key is the company's",
+            row.owner, row.profile
+        ));
+    }
+    let org = project_owner.filter(|o| !o.is_empty()).ok_or_else(|| format!("{CONFIG_VAR} is here and this run names no project owner"))?;
+    Ok(Mode::Company(Company { org: org.to_string(), config: Config::parse(config.as_bytes())?, config_sha256: sha256_hex(config.as_bytes()) }))
 }
 
 /// The company's configuration as stored: what an escalation's task is made
@@ -144,5 +162,47 @@ mod tests {
             let err = Config::parse(CONFIG.replace(edit, replace).as_bytes()).unwrap_err();
             assert!(err.contains(why), "{edit}: {err}");
         }
+    }
+
+    fn row(owner: &str, keys: &[&str]) -> env::SecretsRow {
+        env::SecretsRow { owner: owner.into(), profile: "default".into(), keys: keys.iter().map(|k| k.to_string()).collect() }
+    }
+
+    #[test]
+    fn the_organisation_is_the_project_owner_and_nothing_a_row_says() {
+        let officer = row("hr.acme.testnet", &[]);
+        let Mode::Company(company) = resolve(&[officer], Some(CONFIG), Some("acme.testnet")).unwrap() else { panic!("company") };
+        assert_eq!(company.org, "acme.testnet");
+        assert_eq!(company.config_sha256, sha256_hex(CONFIG.as_bytes()));
+        assert!(matches!(resolve(&[], Some(CONFIG), Some("acme.testnet")), Ok(Mode::Company(_))), "no row named at all");
+    }
+
+    #[test]
+    fn a_configuration_from_a_row_the_call_names_is_nobodys() {
+        for rows in [vec![row("carol.testnet", &[CONFIG_VAR])], vec![row("carol.testnet", &[KEY_VAR, CONFIG_VAR])]] {
+            for project_config in [None, Some(CONFIG)] {
+                let err = resolve(&rows, project_config, Some("acme.testnet")).unwrap_err();
+                assert!(err.contains("carol.testnet/default") && err.contains("project of your own"), "{err}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_company_runs_on_its_own_key() {
+        let err = resolve(&[row("carol.testnet", &[KEY_VAR])], Some(CONFIG), Some("acme.testnet")).unwrap_err();
+        assert!(err.contains("the key is the company's"), "{err}");
+    }
+
+    #[test]
+    fn a_project_with_no_configuration_is_personal() {
+        assert!(matches!(resolve(&[row("carol.testnet", &[KEY_VAR])], None, Some("zavodil2.testnet")), Ok(Mode::Personal)));
+        assert!(matches!(resolve(&[], None, None), Ok(Mode::Personal)));
+    }
+
+    #[test]
+    fn a_configuration_may_ask_for_a_screen_in_a_tee() {
+        assert!(!Config::parse(CONFIG.as_bytes()).unwrap().screening_tee);
+        let strict = Config::parse(br#"{"frameworks":["eu-ai-act/art5@1"],"screening_tee":true}"#).unwrap();
+        assert!(strict.screening_tee);
     }
 }
