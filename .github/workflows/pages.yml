@@ -40,7 +40,7 @@ jobs:
           VITE_OUTLAYER_NETWORK: testnet
           VITE_PROJECT_ID: ${{ vars.VITE_PROJECT_ID || 'zavodil2.testnet/compliance-gateway' }}
           VITE_SECRETS_PROFILE: author
-          # The company's row first, then the officers' (`owner/profile, owner/profile`):
+          # The officers' rows on a company's project (`owner/profile,owner/profile`):
           # a repository variable, not a secret — row names are public on chain.
           VITE_SECRETS_ROWS: ${{ vars.VITE_SECRETS_ROWS }}
           VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE }}
