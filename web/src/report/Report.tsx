@@ -599,9 +599,10 @@ export function Report() {
           <Shots
             shots={[
               ['13-approved-proof', 'The second run has its own attestation, tied to the officer’s task'],
-              ['22-inbox-done', 'The officer’s inbox afterwards: the task names both runs, with their attestations'],
+              ['21-inbox-carrying-out', 'The inbox right after the signature: the task is carried out'],
             ]}
           />
+          <Shots shots={[['22-inbox-done', 'The inbox afterwards: the task names both runs, with their attestations, the same call ids as the evidence below']]} />
           <Built>
             <p>
               <strong>The officer’s wallet signature starts a second attested run,</strong> by the platform, on the employee’s key. The officer signs one message, with no transaction and no fee. That run takes back the sealed request and the screen as made, answers, and seals the receipt to the tab that asked. The task is bound to the hash of the company’s configuration, so if the rules change while it waits, the task is void.
