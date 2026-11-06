@@ -27,6 +27,9 @@ promised:
 
 It runs end to end on NEAR testnet, from a static page with no backend.
 
+[The report](https://zavodil.github.io/near-attested-ai/report.html) follows one
+company's day through it, each step with its screen, attestation and signed label.
+
 ---
 
 ## Whose rules apply

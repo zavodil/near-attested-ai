@@ -237,7 +237,7 @@ export function App() {
 
       <footer className="footer">
         Verification runs in this page: Intel TDX quotes with Intel DCAP (WebAssembly), NVIDIA tokens against NVIDIA’s published keys, signatures with
-        secp256k1 recovery and ed25519. Nothing here asks OutLayer whether OutLayer is honest.
+        secp256k1 recovery and ed25519. Nothing here asks OutLayer whether OutLayer is honest. <a href="report.html">Read the report of a company’s day on it.</a>
       </footer>
     </div>
   );

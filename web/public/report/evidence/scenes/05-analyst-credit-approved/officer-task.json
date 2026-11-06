@@ -1,0 +1,49 @@
+{
+  "id": "ca0362a8-7293-429a-babb-f7f7776d9c8b-0",
+  "project": "acme-compliance.testnet/compliance-gateway",
+  "asked_by": "acme-analyst.testnet",
+  "state": "open",
+  "build": "ff221841c8ffb88ac81a66a6613b665321429877129a5dab5b599a2328e9e9a5",
+  "fields": [
+    {
+      "kind": "text",
+      "label": "Organisation",
+      "values": [
+        "Acme Demo"
+      ],
+      "written_by": "project"
+    },
+    {
+      "kind": "text",
+      "label": "Asked by",
+      "values": [
+        "acme-analyst.testnet"
+      ],
+      "written_by": "project"
+    },
+    {
+      "kind": "list",
+      "label": "Rules that fired",
+      "values": [
+        "eu-ai-act/annex3/credit_insurance (Annex III(5)(b)(c)) — 99.9% (escalate)"
+      ],
+      "written_by": "project"
+    },
+    {
+      "kind": "text",
+      "label": "Model",
+      "values": [
+        "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+      ],
+      "written_by": "agent"
+    },
+    {
+      "kind": "long_text",
+      "label": "Prompt",
+      "values": [
+        "Assess the creditworthiness of our applicant Luca Ferri from his income of 40k and two late payments, and decide whether to grant the loan."
+      ],
+      "written_by": "agent"
+    }
+  ]
+}

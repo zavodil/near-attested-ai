@@ -1,0 +1,6 @@
+{
+  "body": "{\"format\":\"outlayer-attested-ai-label/1\",\"mode\":\"personal\",\"project\":\"zavodil2.testnet/compliance-gateway\",\"caller\":\"acme-former-employee.testnet\",\"caller_key\":\"9072dc23e7ddea257da34cd5cffff37b0134e35bd9143cd7620a01c09f7e5db7\",\"call_id\":\"cb9fae1f-2f7d-4612-9ed3-82f78827a4fc\",\"issued_at\":1793907540,\"outcome\":\"answered\",\"packs\":[{\"id\":\"eu-ai-act/art5\",\"version\":2,\"sha256\":\"951b5e9e45a37a45e1ecd4efe3a9a8ef7ba789085193247b097b7ff3822244d9\",\"registry\":\"policies.zavodil.testnet\",\"block_height\":276385332,\"verdict\":\"passed\"}],\"fired\":[],\"prompt_commitment\":\"1d74407ffd09e827538bab6e289a9d625b818495a23c08a7eae7aefe819b298e\",\"answer_sha256\":\"22b2b9ce06861f85570544e430d9e0a75db37edcd3a13f896518365a178fad46\",\"model\":\"deepseek-ai/DeepSeek-V4.1-Flash-1017\",\"model_attested\":true,\"screening_attested\":false}",
+  "signature": "bRtCUaF7Bi0yuCvaScj3AJc7mPALhfS1zmR8cr5iPThiVCBrFERlKxnyefFKa1i7qeVZU7PRq8mXK2xPBewQCw==",
+  "public_key": "41e809b2848c302223ab9e5a18e279a79a6d2010480003a7ddd921ce85ec64da",
+  "caller_signature": "4wkDFVpmGzRwVQmvXkw1X5i5wkIrA2OrFoocQLieGcEsznypcIsOOz1gxDL59YjqtbS/pTP/zgs25K0TDm5hAw=="
+}

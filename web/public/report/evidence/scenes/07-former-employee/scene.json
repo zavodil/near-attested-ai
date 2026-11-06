@@ -1,0 +1,5 @@
+{
+  "title": "A former employee is off the list",
+  "who": "acme-former-employee.testnet",
+  "refused": "Access denied by access condition. Check the access conditions configured by the secret owner."
+}

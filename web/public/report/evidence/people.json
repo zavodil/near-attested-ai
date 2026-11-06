@@ -1,0 +1,45 @@
+{
+  "org": "acme-compliance.testnet",
+  "org_name": "Acme Demo",
+  "project": "acme-compliance.testnet/compliance-gateway",
+  "tee_project": "acme-compliance.testnet/compliance-gateway-tee",
+  "personal_project": "zavodil2.testnet/compliance-gateway",
+  "company": {
+    "account": "acme-compliance.testnet",
+    "position": "Compliance, owns the company's project and row",
+    "label_key": "f33d95ddb08b2a3912e1b55982b1327ac8354512a63c3e3cd231bfce8e820f60",
+    "pinned_from": "pins/company"
+  },
+  "tee_company": {
+    "label_key": "8d274eebea126609b4e847bb64f5c3d4186c520225d5bdb8742e4f2ba9ac6657",
+    "caller_key": "39441e84285ad8d6d049456964bff988d37020a9c4a3766d4704c034321e8a1d",
+    "pinned_from": "pins/tee"
+  },
+  "employees": {
+    "acme-recruiter.testnet": {
+      "position": "Recruiter",
+      "caller_key": "e5705c8cba632198d7f0e6de27c90050d252b81ff139f5393aa8805b9194cc93",
+      "pinned_from": "pins/recruiter"
+    },
+    "acme-analyst.testnet": {
+      "position": "Credit analyst",
+      "caller_key": "1fba0503f50cbfa13446371ff55826f7fccb74f1002e1df563af0494547c2b89",
+      "pinned_from": "pins/analyst"
+    }
+  },
+  "officers": {
+    "acme-hr-director.testnet": {
+      "position": "HR director",
+      "takes": "employment_decision"
+    },
+    "acme-risk-officer.testnet": {
+      "position": "Risk officer",
+      "takes": "annex3"
+    }
+  },
+  "outsider": {
+    "role": "former_employee",
+    "account": "acme-former-employee.testnet",
+    "position": "Former employee, not on the company's list"
+  }
+}

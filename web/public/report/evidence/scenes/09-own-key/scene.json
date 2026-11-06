@@ -1,0 +1,5 @@
+{
+  "title": "An employee brings a NEAR AI key of their own",
+  "who": "acme-recruiter.testnet",
+  "refused": "the author's secrets and the caller's both define `NEARAI_API_KEY`; rename one side"
+}

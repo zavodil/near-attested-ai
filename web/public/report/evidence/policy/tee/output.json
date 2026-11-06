@@ -1,0 +1,104 @@
+{
+  "config": {
+    "escalate": {
+      "eu-ai-act/annex3-tee": "acme-risk-officer.testnet",
+      "eu-ai-act/annex3-tee/employment_decision": "acme-hr-director.testnet"
+    },
+    "frameworks": [
+      "eu-ai-act/art5-tee@1",
+      "eu-ai-act/annex3-tee@1"
+    ],
+    "models": [
+      "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+    ],
+    "org_name": "Acme Demo",
+    "screening_tee": true
+  },
+  "config_sha256": "b05e9582f1af263dc0e0d38f207626a404fb9b98a6295aafeb9ec68c27fef0f4",
+  "mode": "company",
+  "org": "acme-compliance.testnet",
+  "packs": [
+    {
+      "block_height": 276502487,
+      "deprecated": false,
+      "pack": {
+        "id": "eu-ai-act/art5-tee",
+        "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        "rules": [
+          {
+            "action": "block",
+            "cite": "Art. 5(1)(f)",
+            "id": "emotion_recognition_work",
+            "question": "Does the text ask to infer or monitor the emotions or emotional state of an employee, worker or student from their face, voice, writing or behaviour?",
+            "threshold": 50
+          },
+          {
+            "action": "block",
+            "cite": "Art. 5(1)(g)",
+            "id": "biometric_categorisation",
+            "question": "Does the text ask to infer a person's race, ethnicity, political opinions, religion, trade-union membership, sex life or sexual orientation from their photo, voice, face or other biometric data?",
+            "threshold": 50
+          },
+          {
+            "action": "block",
+            "cite": "Art. 5(1)(c)",
+            "id": "social_scoring",
+            "question": "Does the text ask to score, rank or classify people by their social behaviour or personal traits in a way that leads to unfavourable treatment of them?",
+            "threshold": 50
+          },
+          {
+            "action": "block",
+            "cite": "Art. 5(1)(b)",
+            "id": "exploit_vulnerability",
+            "question": "Does the text ask to exploit a person's age, disability, poverty or other vulnerability to change their behaviour or decisions against their interest?",
+            "threshold": 50
+          }
+        ],
+        "title": "EU AI Act — prohibited practices (Art. 5), screened in a TEE",
+        "version": 1,
+        "via": "chat"
+      },
+      "publisher": "policies.zavodil.testnet",
+      "registry": "policies.zavodil.testnet",
+      "sha256": "19524f29267fcfef8d3079a5733074b23d6662e53f869ca0e6510788dd700641"
+    },
+    {
+      "block_height": 276502487,
+      "deprecated": false,
+      "pack": {
+        "id": "eu-ai-act/annex3-tee",
+        "model": "deepseek-ai/DeepSeek-V4.1-Flash-1017",
+        "rules": [
+          {
+            "action": "escalate",
+            "cite": "Annex III(4)",
+            "id": "employment_decision",
+            "question": "Does the text ask to evaluate, rank, select, promote, dismiss, discipline or monitor a specific job candidate or employee, or to decide on their pay or tasks?",
+            "threshold": 50
+          },
+          {
+            "action": "escalate",
+            "cite": "Annex III(5)(b)(c)",
+            "id": "credit_insurance",
+            "question": "Does the text ask to assess a specific person's creditworthiness, credit score, or eligibility or price for life or health insurance?",
+            "threshold": 50
+          },
+          {
+            "action": "escalate",
+            "cite": "Annex III(5)(a)",
+            "id": "essential_services",
+            "question": "Does the text ask to decide whether a specific person gets, keeps or loses a public benefit, healthcare or another essential service?",
+            "threshold": 50
+          }
+        ],
+        "title": "EU AI Act — high-risk uses that need human oversight (Annex III), screened in a TEE",
+        "version": 1,
+        "via": "chat"
+      },
+      "publisher": "policies.zavodil.testnet",
+      "registry": "policies.zavodil.testnet",
+      "sha256": "9a2d46dcee7308701628cdceb3f6a09a66e027e46f7cfade90aa13d76c79258a"
+    }
+  ],
+  "registry": "policies.zavodil.testnet"
+}

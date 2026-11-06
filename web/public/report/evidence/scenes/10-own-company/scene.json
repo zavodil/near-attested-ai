@@ -1,0 +1,5 @@
+{
+  "title": "An employee declares a company on the personal project",
+  "who": "acme-recruiter.testnet",
+  "refused": "COMPLIANCE_CONFIG comes from acme-recruiter.testnet/attack-own, a row this call names: a company's configuration is the row its project's owner stores under the project. To run your own rules, publish this build as a project of your own"
+}

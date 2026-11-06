@@ -1,0 +1,154 @@
+{
+  "config": {
+    "escalate": {
+      "eu-ai-act/annex3": "acme-risk-officer.testnet",
+      "eu-ai-act/annex3/employment_decision": "acme-hr-director.testnet"
+    },
+    "frameworks": [
+      "eu-ai-act/art5@2",
+      "eu-ai-act/annex3@2",
+      "gdpr/art9@2",
+      "corporate/baseline@2"
+    ],
+    "models": [
+      "deepseek-ai/DeepSeek-V4.1-Flash-1017"
+    ],
+    "org_name": "Acme Demo"
+  },
+  "config_sha256": "ddd15896447a8ed8dc3d8208e1621f05914b8661264c45a17dd3cc7bd27e6101",
+  "mode": "company",
+  "org": "acme-compliance.testnet",
+  "packs": [
+    {
+      "block_height": 276501591,
+      "deprecated": false,
+      "pack": {
+        "id": "eu-ai-act/art5",
+        "model": "levanto/sage-2",
+        "rules": [
+          {
+            "action": "block",
+            "cite": "Art. 5(1)(f)",
+            "id": "emotion_recognition_work",
+            "question": "Does the text ask to infer or monitor the emotions or emotional state of an employee, worker or student from their face, voice, writing or behaviour?",
+            "threshold": 50
+          },
+          {
+            "action": "block",
+            "cite": "Art. 5(1)(g)",
+            "id": "biometric_categorisation",
+            "question": "Does the text ask to infer a person's race, ethnicity, political opinions, religion, trade-union membership, sex life or sexual orientation from their photo, voice, face or other biometric data?",
+            "threshold": 50
+          },
+          {
+            "action": "block",
+            "cite": "Art. 5(1)(c)",
+            "id": "social_scoring",
+            "question": "Does the text ask to score, rank or classify people by their social behaviour or personal traits in a way that leads to unfavourable treatment of them?",
+            "threshold": 50
+          },
+          {
+            "action": "block",
+            "cite": "Art. 5(1)(b)",
+            "id": "exploit_vulnerability",
+            "question": "Does the text ask to exploit a person's age, disability, poverty or other vulnerability to change their behaviour or decisions against their interest?",
+            "threshold": 50
+          }
+        ],
+        "title": "EU AI Act — prohibited practices (Art. 5)",
+        "version": 2
+      },
+      "publisher": "policies.zavodil.testnet",
+      "registry": "policies.zavodil.testnet",
+      "sha256": "951b5e9e45a37a45e1ecd4efe3a9a8ef7ba789085193247b097b7ff3822244d9"
+    },
+    {
+      "block_height": 276501591,
+      "deprecated": false,
+      "pack": {
+        "id": "eu-ai-act/annex3",
+        "model": "levanto/sage-2",
+        "rules": [
+          {
+            "action": "escalate",
+            "cite": "Annex III(4)",
+            "id": "employment_decision",
+            "question": "Does the text ask to evaluate, rank, select, promote, dismiss, discipline or monitor a specific job candidate or employee, or to decide on their pay or tasks?",
+            "threshold": 50
+          },
+          {
+            "action": "escalate",
+            "cite": "Annex III(5)(b)(c)",
+            "id": "credit_insurance",
+            "question": "Does the text ask to assess a specific person's creditworthiness, credit score, or eligibility or price for life or health insurance?",
+            "threshold": 50
+          },
+          {
+            "action": "escalate",
+            "cite": "Annex III(5)(a)",
+            "id": "essential_services",
+            "question": "Does the text ask to decide whether a specific person gets, keeps or loses a public benefit, healthcare or another essential service?",
+            "threshold": 50
+          }
+        ],
+        "title": "EU AI Act — high-risk uses that need human oversight (Annex III)",
+        "version": 2
+      },
+      "publisher": "policies.zavodil.testnet",
+      "registry": "policies.zavodil.testnet",
+      "sha256": "19cb8bc0ba9753e44f02e26892bd103bd1f635434652ac40218457a9f1fd9139"
+    },
+    {
+      "block_height": 276501591,
+      "deprecated": false,
+      "pack": {
+        "id": "gdpr/art9",
+        "model": "levanto/sage-2",
+        "rules": [
+          {
+            "action": "block",
+            "cite": "Art. 9(1)",
+            "id": "special_category",
+            "question": "Does the text reveal an identifiable person's health condition, pregnancy, disability, sexual orientation, religion, ethnic origin, political opinions, trade-union membership, genetic or biometric data?",
+            "threshold": 60
+          }
+        ],
+        "title": "GDPR — special categories of personal data (Art. 9)",
+        "version": 2
+      },
+      "publisher": "policies.zavodil.testnet",
+      "registry": "policies.zavodil.testnet",
+      "sha256": "f98e6f2e73c3d6b18c01503e9de75c70de43b04f7d100c036cc377da39184815"
+    },
+    {
+      "block_height": 276501592,
+      "deprecated": false,
+      "pack": {
+        "id": "corporate/baseline",
+        "model": "levanto/sage-2",
+        "rules": [
+          {
+            "action": "block",
+            "cite": "Information security policy",
+            "id": "credentials",
+            "question": "Does the text contain a password, an API key, a private key, an access token or another secret credential?",
+            "threshold": 50
+          },
+          {
+            "action": "block",
+            "cite": "Code of conduct",
+            "id": "harm",
+            "question": "Does the text ask for help harming, poisoning, threatening, stalking or killing a person?",
+            "threshold": 50
+          }
+        ],
+        "title": "Company baseline — secrets and harm",
+        "version": 2
+      },
+      "publisher": "policies.zavodil.testnet",
+      "registry": "policies.zavodil.testnet",
+      "sha256": "b0ac67f6996553f720fa3ffe4d499f091371246c666ee0617a737233f51f6be6"
+    }
+  ],
+  "registry": "policies.zavodil.testnet"
+}

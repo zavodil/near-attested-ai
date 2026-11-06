@@ -1,0 +1,5 @@
+{
+  "title": "An escalation with the officers’ rows left out",
+  "who": "acme-recruiter.testnet",
+  "refused": "the prompt escalates to acme-hr-director.testnet, whose row this call does not name: name it in `secrets_refs`"
+}

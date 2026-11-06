@@ -18,7 +18,7 @@
 import { sha256Hex } from './bytes';
 import { newReplyKey, openReceipt, sealTo, type ReplyKey } from './envelope';
 import type { Network } from './network';
-import { callOutput, fetchAttestation, runProject, type SecretsRef } from './outlayer';
+import { callOutput, fetchAttestation, runProject, type AttestationRecord, type SecretsRef } from './outlayer';
 import { parseReceipt, type EscalatedOutput, type LabelBody, type Mode, type Receipt, type SealedOutput } from './receipt';
 import { verifyLabel } from './verify/label';
 import { verifyModelCall, verifyPackOnChain, verifyPolicy } from './verify/model';
@@ -203,26 +203,45 @@ async function openAndVerify(
 ): Promise<Outcome> {
   onStage('open');
   const receiptBytes = openReceipt(reply, sealed.sealed);
-  const receipt = parseReceipt(receiptBytes);
-
   onStage('verify', 'Fetching OutLayer’s TDX attestation for this call');
   const attestation = await fetchAttestation(target.network, callId);
+  const { receipt, label, proofs } = await verifyRun(target.network, { callId, attestation, input, output: sealed, receiptBytes, approvedTask: approved?.taskId, labelPubkey: enclave.labelPubkey, callerPubkey: enclave.callerPubkey }, onStage);
+  return { callId, receipt, receiptBytes, label, operatorView: { input: input ?? { operation: 'answer_escalated', task_id: approved?.taskId }, output: sealed }, proofs };
+}
+
+/** A finished run as a verifier holds it: from this page's own call, or from the files of an evidence folder. */
+export interface RunEvidence {
+  callId: string;
+  attestation: AttestationRecord;
+  /** `null` for the run the platform started on an officer's yes: its input is not the caller's. */
+  input: unknown | null;
+  /** The output as the run left it, every member: the attested hash is over all of them. */
+  output: SealedOutput;
+  receiptBytes: Uint8Array;
+  /** The task whose approval this run answers. */
+  approvedTask?: string;
+  labelPubkey: string;
+  callerPubkey: string;
+}
+
+/** Every claim a receipt makes, checked against Intel, NVIDIA and the chain. */
+export async function verifyRun(network: Network, run: RunEvidence, onStage: (stage: Stage, note?: string) => void = () => {}): Promise<{ receipt: Receipt; label: LabelBody | null; proofs: ProofGroup[] }> {
+  const { callId, attestation, input, output, receiptBytes, approvedTask } = run;
+  const receipt = parseReceipt(receiptBytes);
   onStage('verify', 'Checking OutLayer’s Intel quote, its worker build, and that it covers exactly this output');
-  // The output as the run left it, every member: the attested hash is over all of them.
-  const output: SealedOutput = sealed;
   const proofs: ProofGroup[] = [
-    await verifyOutlayerRun(target.network, attestation, input, output, { id: 'outlayer-run', title: approved ? 'OutLayer enclave · the run after the approval' : 'OutLayer enclave' }, [
-      check(sha256Hex(receiptBytes) === sealed.receipt_digest, 'The receipt is the attested output', 'sha256(receipt) = the digest in the attested output', 'the receipt does not hash to the attested digest'),
+    await verifyOutlayerRun(network, attestation, input, output, { id: 'outlayer-run', title: approvedTask ? 'OutLayer enclave · the run after the approval' : 'OutLayer enclave' }, [
+      check(sha256Hex(receiptBytes) === output.receipt_digest, 'The receipt is the attested output', 'sha256(receipt) = the digest in the attested output', 'the receipt does not hash to the attested digest'),
       check(receipt.call_id === callId, 'The receipt names this call', callId, `the receipt names call ${receipt.call_id}`),
-      ...(approved
-        ? [check(receipt.approval?.task_id === approved.taskId, 'Answered on the officer’s approval', `task ${approved.taskId}, approved by ${receipt.approval?.officer ?? '?'}`, 'the receipt names another task')]
+      ...(approvedTask
+        ? [check(receipt.approval?.task_id === approvedTask, 'Answered on the officer’s approval', `task ${approvedTask}, approved by ${receipt.approval?.officer ?? '?'}`, 'the receipt names another task')]
         : []),
     ]),
   ];
   if (receipt.screening) {
     const steps = verifyPolicy(receipt.screening);
     onStage('verify', 'Asking the chain whether the packs applied are the ones it holds');
-    for (const pack of receipt.screening.packs) steps.push(await verifyPackOnChain(target.network.rpc, pack));
+    for (const pack of receipt.screening.packs) steps.push(await verifyPackOnChain(network.rpc, pack));
     proofs.push({
       id: 'policy',
       title: 'Policy packs',
@@ -246,7 +265,7 @@ async function openAndVerify(
     proofs.push(await verifyModelCall(receipt.answer.call, receipt, 'answer'));
   }
   onStage('verify', 'Checking the label’s signatures against the pinned keys');
-  const { label, steps: labelSteps } = verifyLabel(receipt, enclave.labelPubkey, enclave.callerPubkey);
+  const { label, steps: labelSteps } = verifyLabel(receipt, run.labelPubkey, run.callerPubkey);
   proofs.push({
     id: 'label',
     title: 'Signed label',
@@ -262,5 +281,5 @@ async function openAndVerify(
     raw: receipt.label,
   });
 
-  return { callId, receipt, receiptBytes, label, operatorView: { input: input ?? { operation: 'answer_escalated', task_id: approved?.taskId }, output }, proofs };
+  return { receipt, label, proofs };
 }
