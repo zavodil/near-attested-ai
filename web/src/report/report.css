@@ -13,6 +13,7 @@
 .report td.mono { white-space: nowrap; }
 .report .why { color: var(--muted); min-width: 240px; }
 .report .note { font-size: 13.5px; color: var(--faint); }
+.report-question { font-size: 17px; margin: 26px 0 10px; }
 .report-step { margin: 0 0 40px; padding-top: 24px; border-top: 1px solid var(--border); scroll-margin-top: 12px; }
 .report-step h3 { display: flex; align-items: center; gap: 10px; font-size: 18px; margin: 0 0 10px; }
 .step-n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--accent); }

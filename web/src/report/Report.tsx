@@ -376,8 +376,56 @@ export function Report() {
           <strong>The same enclave reaches past AI.</strong> OutLayer also runs custody wallets under an owner’s policy and connectors to outside services. An approval like the one in <a href="#step-6">step 6</a> works the same way when the action is a payment rather than an answer.
         </p>
         <p>
-          <strong>The product stays the builder’s.</strong> The module and the rule packs are the builder’s own code and data, and the rules, customers and interface are theirs to change. What would not move to another platform are the keys, which OutLayer’s keystore derives. The platform’s own limits are stated <a href="#limits">below</a>.
+          <strong>The product stays the builder’s.</strong> The module and the rule packs are the builder’s own code and data, and the rules, customers and interface are theirs to change.
         </p>
+
+        <h3 className="report-question">Couldn’t the model platform do this itself?</h3>
+        <p>
+          It could be built there, and the rule is the easy part. NEAR AI Cloud’s <a href="https://docs.near.ai/cloud/verification" target="_blank" rel="noreferrer">verification</a> proves each call: this model, in this TEE, signed this request and response. Screening and then answering are two separate proofs. What connects them is the code in between, which reads the score, applies the threshold, and decides whether to call the answering model.
+          If that code runs outside an attested environment, the proofs show that a screen happened and that an answer happened. They do not show that the answer followed from the screen, or that nothing was answered without one.
+        </p>
+        <p>
+          Here that code is the module. Its hash is in the Intel quote of the run that made both calls, so the chain is one attested decision. Escalation needs more: the run ends, a named person signs, and a new attested run continues with the same sealed data. NEAR AI’s public documentation describes no policy or approval layer today. Building one means running that code in an attested environment of its own, plus everything in the table above.
+        </p>
+
+        <h3 className="report-question">Does this make a customer depend on one more platform?</h3>
+        <p>Yes, for running it. Most of what could lock a customer in can be taken over, and the part that cannot yet is stated here.</p>
+        <div className="wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Layer</th>
+                <th>Who controls it</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>The rules</td>
+                <td>The customer can. The registry has no update or delete. A customer deploys its own and removes the contract account’s full-access keys, and then nobody can change it. The registry in this demo still has its key.</td>
+              </tr>
+              <tr>
+                <td>The gateway’s code</td>
+                <td>The customer can. It builds its own module from this template and publishes it under its own account. The hash is in every attestation, so a gate can require that exact build.</td>
+              </tr>
+              <tr>
+                <td>Keys and secrets</td>
+                <td>
+                  OutLayer’s shared master by default. A customer can use a <a href="https://github.com/out-layer/outlayer/blob/main/VAULTS.md">sovereign vault</a>: a master derived by the NEAR MPC network from the customer’s own account. Every derivation is a public transaction, a project’s keys can name that vault, and the customer can <a href="https://github.com/out-layer/outlayer/blob/main/docs/LEAVING_OUTLAYER.md">leave</a> without OutLayer’s cooperation. This demo does not use one.
+                </td>
+              </tr>
+              <tr>
+                <td>Which worker and keystore builds are approved</td>
+                <td>
+                  OutLayer, today. One account approves builds, the DAO has one member, contracts upgrade by key, and the DAO account’s key can obtain the shared master outside an enclave. An approved build could also derive a locked vault’s master, though only by a public transaction. OutLayer’s <a href="https://github.com/out-layer/outlayer/blob/main/docs/NON_CUSTODIAL.md#governance-at-this-stage">documentation</a> commits to moving this to a vote with independent members. Until then, a customer’s gate can accept only worker measurements it has reviewed itself.
+                </td>
+              </tr>
+              <tr>
+                <td>Keeping it running</td>
+                <td>OutLayer. If it stops, new runs stop. Labels already issued still verify against the pinned keys, and the code, the rules and a vault’s secrets stay with the customer.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="report-section">
@@ -709,7 +757,7 @@ export function Report() {
           </li>
         </ul>
         <p className="note">
-          The trust that remains: Intel’s and NVIDIA’s roots, NEAR AI’s model TEE, and OutLayer’s platform. At this stage OutLayer itself holds the keys that approve worker builds and upgrade its contracts, as its <a href="https://github.com/out-layer/outlayer/blob/main/docs/NON_CUSTODIAL.md">documentation</a> states. A re-check reads the approved list today, so a worker build retired later will show here as no longer approved.
+          The trust that remains: Intel’s and NVIDIA’s roots, NEAR AI’s model TEE, and OutLayer’s governance, as <a href="#why-outlayer">set out above</a>. A re-check reads the approved list today, so a worker build retired later will show here as no longer approved.
         </p>
       </section>
 
