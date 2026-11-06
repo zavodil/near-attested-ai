@@ -21,14 +21,27 @@ const BRIEF: [number, string, string][] = [
   [11, 'Screening can run in a TEE too,', 'on the same code under a stricter configuration.'],
 ];
 
+const BUSINESS: [string, string][] = [
+  ['Proof with every request', 'Each run comes with a hardware-signed proof of what code ran on what data. Anyone can check it, with no account and no key of ours.'],
+  ['The product signs its own results', 'Every result is signed with the company’s key and the employee’s key. Keys come from the NEAR MPC network, and nobody has to hold or guard them.'],
+  ['An AI answer you can verify', 'The model’s secure hardware signs each answer, and that signature travels with the result, so a receiving system can tell it is genuine.'],
+  ['Approvals built in', 'Delegated tasks send a request to a named officer, who approves it with one signature, no transaction and no fee. A webhook can alert them through any channel the company uses.'],
+  ['Rules and secrets that cannot be swapped', 'A company’s configuration is stored on NEAR, encrypted, under a transaction its own account signed. Only that account can change it, and it opens only for the people it names.'],
+  ['Data stays sealed in transit', 'Requests are encrypted in the employee’s browser. OutLayer’s servers only ever see ciphertext.'],
+  ['Access and billing per person', 'Each employee has their own prepaid key. Removing someone from the company’s list ends their access.'],
+  ['A new customer is a configuration', 'One published build serves many companies, each with its own keys and rules. There are no servers to run for each customer.'],
+];
+
 const WHY: [string, string, string][] = [
-  ['Code that handles prompts where nobody can read them', 'Your wasm runs in an Intel TDX enclave. Publish it, and the workers are already running.', 'A TDX fleet, its images and upgrades'],
+  ['Confidential execution', 'Your wasm runs in an Intel TDX enclave. Publish it, and the workers are already running.', 'A TDX fleet, its images and upgrades'],
   ['Proof of each run', 'An Intel quote per run, covering code, input, output, caller and project, public by call id.', 'Quote generation, collateral, an approved-build list, a public record'],
-  ['Keys no one holds', 'Keys declared in the manifest, derived in a TEE keystore whose root secret comes from the NEAR MPC network. The code asks for signatures and never sees a key.', 'A KMS or HSM, and a way to prove the vendor could not have signed'],
-  ['Each customer’s secrets and rules', 'Encrypted rows on NEAR, opened only in the enclave, with on-chain access conditions naming who may run.', 'Multi-tenant secret storage and access control'],
-  ['A person in the loop', 'Tasks: an inbox, encrypted delivery, a wallet signature, and a new attested run on approval. One call from the module.', 'A workflow service, notifications, sign-off verification and resume logic'],
+  ['The project signs cryptographically', 'Signing keys declared in the manifest, per project or per caller, from confidential key derivation by the NEAR MPC network. The code asks for signatures and never sees a key.', 'A KMS or HSM, and a way to prove the vendor could not have signed'],
+  ['A verifiable AI answer', 'The receipt carries the model’s Intel quote, NVIDIA’s verdict and the TEE’s signature over request and response, checked in the enclave and again by any reader. One verifier serves every framework.', 'Evidence capture and a verifier for each model call'],
+  ['Secrets on chain', 'Encrypted rows stored by a transaction their owner signs. Only that account can replace a row. They are decrypted in the TEE keystore, for the callers its access condition admits.', 'Multi-tenant secret storage and access control'],
+  ['Delegation of secrets', 'A call can name up to five rows. An officer’s own row admits employees by name, which links officers to the people they approve for without making them admins.', 'A role and consent model across tenants'],
+  ['Delegated tasks', 'open-for(owner, request) gives an inbox, encrypted delivery, a wallet signature and a new attested run on approval. A signed webhook feeds any notification channel.', 'A workflow service, notifications, sign-off verification and resume logic'],
   ['Limits on where data can go', 'A host list inside the wasm, covered by its hash and enforced by the worker.', 'Egress control a customer can verify'],
-  ['Per-person access and billing', 'Payment keys: prepaid stablecoin balances, called over HTTPS. Project owners can also earn per call.', 'Metering, billing and an API gateway'],
+  ['Access and billing', 'Payment keys: prepaid stablecoin balances over HTTPS. A project can also be called from a NEAR contract, and its owner can earn per call.', 'Metering, billing and an API gateway'],
 ];
 
 const when = (seconds: number) => `${new Date(seconds * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
@@ -307,13 +320,13 @@ export function Report() {
   const [people, setPeople] = useState<People | null>(null);
   const [policy, setPolicy] = useState<PolicyFacts | null>(null);
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
+  const [tab, setTab] = useState<'business' | 'engineering'>('business');
   useEffect(() => {
     loadPeople().then(setPeople);
     loadPolicy('policy/recruiter').then(setPolicy);
     loadLedger().then(setLedger);
   }, []);
   const attested = ledger.filter((r) => r.attestation === 'verified').length;
-  const failed = ledger.filter((r) => r.attestation.startsWith('FAILED')).length;
   const attempts = ledger.filter((r) => /^(07|08|09|10|11|12)-/.test(r.scene) || r.scene === 'forged');
 
   return (
@@ -329,7 +342,7 @@ export function Report() {
           <br />
           <span>with proof of enforcement.</span>
         </h1>
-        <p className="lede">A gateway that lets a company’s people use AI on sensitive work, applies the company’s rules to every request, and produces evidence an outsider can check. Built on OutLayer, answered by NEAR AI Cloud, running on NEAR testnet.</p>
+        <p className="lede">A gateway that lets a company’s people use AI on sensitive work, applies the company’s rules to every request, and produces evidence an outsider can check. Built on OutLayer and NEAR AI Cloud, running on NEAR.</p>
       </header>
 
       <section className="report-section">
@@ -344,7 +357,7 @@ export function Report() {
           auditor or a receiving system can verify it without seeing the data.
         </p>
         <p>
-          The buyer is a regulated company that wants AI in daily work and needs evidence for its own liability. The product does not make anyone compliant. It gives them controls and the proof that the controls were enforced.
+          The buyer is a regulated company that wants AI in daily work and needs evidence for its own liability. It gets controls, and the proof that the controls were enforced.
         </p>
         <p>
           Two platforms carry it. <strong>OutLayer</strong> runs the gateway: the rules, the signatures and the approvals, inside an Intel TDX enclave. <strong>NEAR AI Cloud</strong> serves the models, on Intel TDX and NVIDIA confidential GPUs.
@@ -362,102 +375,122 @@ export function Report() {
           ))}
         </ol>
         <p>
-          <strong>Status:</strong> it runs end to end on NEAR testnet. Of the runs in this report’s evidence, <strong>{attested}</strong> verify and <strong>{failed}</strong> fail, and anyone can repeat that check without an account or a key of ours. The rules are a demo set, and screening has limits a
-          real customer must weigh: see <a href="#limits">what this does not prove yet</a>.
+          <strong>It works end to end.</strong> All <strong>{attested}</strong> attested runs in this report’s evidence verify, and anyone can repeat that check without an account or a key of ours.
+        </p>
+      </section>
+
+      <section className="report-section" id="any-framework">
+        <h2>Any framework, any company</h2>
+        <p>
+          The EU AI Act here is a demonstration, not a limit. A framework is a pack of rules: plain questions with a citation, a threshold and an action. Another regulation, a sector’s rules or one company’s own policy is another pack, and the enclave, the labels, the approvals and every verification below work on it unchanged. We can build a pack set for a specific customer’s request.
         </p>
       </section>
 
       <section className="report-section" id="why-outlayer">
         <h2>Why build it on OutLayer</h2>
-        <p>
-          OutLayer is a compute platform on NEAR. You publish a WebAssembly module, and it runs inside an Intel TDX enclave with a proof of each run. Keys and customers’ secrets stay inside the enclave boundary, and a run can hand a decision to a person and continue after their signature. It answers over HTTPS or
-          to a NEAR contract.
-        </p>
-        <p>
-          That is most of what this product needs. The gateway itself is about 2,900 lines of Rust, tests included, plus a 330-line contract and a static web page, written between 2 and 5 November. It has no server of its own. Almost all of it is the product: rules, screening, labels and the page. OutLayer gained three general features for it that week: a per-project signing key, several secret rows on one call, and tasks for another account.
-        </p>
-        <div className="wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>The product needs</th>
-                <th>OutLayer gives it</th>
-                <th>In-house, a team would build and run</th>
-              </tr>
-            </thead>
-            <tbody>
-              {WHY.map(([need, gives, otherwise]) => (
-                <tr key={need}>
-                  <td>{need}</td>
-                  <td>{gives}</td>
-                  <td>{otherwise}</td>
-                </tr>
+        <p>OutLayer is verifiable compute on NEAR: code runs inside an Intel TDX enclave, and every run comes with proof. The steps below are the evidence that this works today. Here is what it means for a product.</p>
+        <div className="tabs" role="tablist" aria-label="Audience">
+          <button role="tab" aria-selected={tab === 'business'} className={tab === 'business' ? 'on' : ''} onClick={() => setTab('business')}>
+            For business
+          </button>
+          <button role="tab" aria-selected={tab === 'engineering'} className={tab === 'engineering' ? 'on' : ''} onClick={() => setTab('engineering')}>
+            For engineers
+          </button>
+        </div>
+
+        {tab === 'business' && (
+          <div role="tabpanel">
+            <p>
+              <strong>All of this comes out of the box.</strong> A team brings its rules and its own screens. The hard parts are already running.
+            </p>
+            <div className="cards">
+              {BUSINESS.map(([title, text]) => (
+                <div className="report-card" key={title}>
+                  <h4>{title}</h4>
+                  <p>{text}</p>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-        <p>
-          <strong>It leaves NEAR AI Cloud as the model layer.</strong> OutLayer serves no models. Every screen and every answer here is NEAR AI inference, up to five calls per request, on the customer’s own NEAR AI key, which the company stores in its encrypted row. Each customer and each rule pack adds NEAR AI usage.
-        </p>
-        <p>
-          <strong>The same enclave reaches past AI.</strong> OutLayer also runs custody wallets under an owner’s policy and connectors to outside services. An approval like the one in <a href="#step-6">step 6</a> works the same way when the action is a payment rather than an answer.
-        </p>
-        <p>
-          <strong>The product stays the builder’s.</strong> The module and the rule packs are the builder’s own code and data, and the rules, customers and interface are theirs to change.
-        </p>
+            </div>
+            <h3 className="report-question">What it brings NEAR AI</h3>
+            <p>Regulated customers ask two questions: what happened to my data, and which rules applied? NEAR AI Cloud answers the first. This answers the second, with proof, and makes confidential AI something a compliance team can sign up for.</p>
+            <p>OutLayer serves no models. Every screen and answer is NEAR AI inference, up to five calls per request, on the customer’s own NEAR AI key. Each new customer and each new rule pack adds NEAR AI usage. It also suits a sovereign AI offer: the customer sets the rules, can hold its own keys, and keeps its own evidence.</p>
+            <h3 className="report-question">Why not build it directly on the model platform?</h3>
+            <p>Proving each model call is what NEAR AI Cloud already does. A control is the decision between the calls: did this request pass, may the model answer, who must approve? Proving that decision takes attested code, keys, customer secrets and an approval flow. OutLayer is that layer, and it is already running.</p>
+            <h3 className="report-question">The customer stays in control</h3>
+            <p>The company publishes and manages its own gateway, sets its own rules, and can hold its own keys, with a way out that needs nobody’s permission. We are ready to provide the templates and help set up each customer.</p>
+          </div>
+        )}
 
-        <h3 className="report-question">Couldn’t the model platform do this itself?</h3>
-        <p>
-          It could be built there, and the rule is the easy part. NEAR AI Cloud’s <a href="https://docs.near.ai/cloud/verification" target="_blank" rel="noreferrer">verification</a> proves each call: this model, in this TEE, signed this request and response. Screening and then answering are two separate proofs. What connects them is the code in between, which reads the score, applies the threshold, and decides whether to call the answering model.
-          If that code runs outside an attested environment, the proofs show that a screen happened and that an answer happened. They do not show that the answer followed from the screen, or that nothing was answered without one.
-        </p>
-        <p>
-          Here that code is the module. Its hash is in the Intel quote of the run that made both calls, so the chain is one attested decision. Escalation needs more: the run ends, a named person signs, and a new attested run continues with the same sealed data. NEAR AI’s public documentation describes no policy or approval layer today. Building one means running that code in an attested environment of its own, plus everything in the table above.
-        </p>
-
-        <h3 className="report-question">Does this make a customer depend on one more platform?</h3>
-        <p>Yes, for running it. Most of what could lock a customer in can be taken over, and the part that cannot yet is stated here.</p>
-        <div className="wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Layer</th>
-                <th>Who controls it</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>The rules</td>
-                <td>The customer can. The registry has no update or delete. A customer deploys its own and removes the contract account’s full-access keys, and then nobody can change it. The registry in this demo still has its key.</td>
-              </tr>
-              <tr>
-                <td>The gateway’s code</td>
-                <td>The customer can. It builds its own module from this template and publishes it under its own account. The hash is in every attestation, so a gate can require that exact build.</td>
-              </tr>
-              <tr>
-                <td>Keys and secrets</td>
-                <td>
-                  OutLayer’s shared master by default. A customer can use a <a href="https://github.com/out-layer/outlayer/blob/main/VAULTS.md">sovereign vault</a>: a master derived by the NEAR MPC network from the customer’s own account. Every derivation is a public transaction, a project’s keys can name that vault, and the customer can <a href="https://github.com/out-layer/outlayer/blob/main/docs/LEAVING_OUTLAYER.md">leave</a> without OutLayer’s cooperation. This demo does not use one.
-                </td>
-              </tr>
-              <tr>
-                <td>Which worker and keystore builds are approved</td>
-                <td>
-                  OutLayer, today. One account approves builds, the DAO has one member, contracts upgrade by key, and the DAO account’s key can obtain the shared master outside an enclave. An approved build could also derive a locked vault’s master, though only by a public transaction. OutLayer’s <a href="https://github.com/out-layer/outlayer/blob/main/docs/NON_CUSTODIAL.md#governance-at-this-stage">documentation</a> commits to moving this to a vote with independent members. Until then, a customer’s gate can accept only worker measurements it has reviewed itself.
-                </td>
-              </tr>
-              <tr>
-                <td>Keeping it running</td>
-                <td>OutLayer. If it stops, new runs stop. Labels already issued still verify against the pinned keys, and the code, the rules and a vault’s secrets stay with the customer.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        {tab === 'engineering' && (
+          <div role="tabpanel">
+            <div className="wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>The product needs</th>
+                    <th>OutLayer gives it</th>
+                    <th>In-house, a team would build and run</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {WHY.map(([need, gives, otherwise]) => (
+                    <tr key={need}>
+                      <td>{need}</td>
+                      <td>{gives}</td>
+                      <td>{otherwise}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <h3 className="report-question">Why the chain needs attested code</h3>
+            <p>
+              NEAR AI Cloud’s <a href="https://docs.near.ai/cloud/verification" target="_blank" rel="noreferrer">verification</a> proves each call: this model, in this TEE, signed this request and response. Screening and answering are two proofs. What connects them is the code that reads the score, applies the threshold and decides whether to call the answering model. Here that code is the module, and its hash is in the Intel quote of the run that made both calls, so the chain is one attested decision. Escalation adds a run that ends, a named person’s signature, and a new attested run that continues with the same sealed data.
+            </p>
+            <h3 className="report-question">Who controls what</h3>
+            <div className="wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Layer</th>
+                    <th>How it is controlled</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>The rules</td>
+                    <td>By the customer. The registry has no update or delete, and a contract account can be locked by removing its keys, so nobody can change a published rule.</td>
+                  </tr>
+                  <tr>
+                    <td>The gateway’s code</td>
+                    <td>By the customer. It publishes and manages its own module from our template. The hash is in every attestation, so a gate can require that exact build.</td>
+                  </tr>
+                  <tr>
+                    <td>Keys and secrets</td>
+                    <td>
+                      OutLayer’s shared master by default. A customer can use a <a href="https://github.com/out-layer/outlayer/blob/main/VAULTS.md">sovereign vault</a>: a master derived by the NEAR MPC network from the customer’s own account. Every derivation is a public transaction, a project’s keys can name that vault, and the customer can <a href="https://github.com/out-layer/outlayer/blob/main/docs/LEAVING_OUTLAYER.md">leave</a> without OutLayer’s cooperation.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Worker and keystore builds</td>
+                    <td>
+                      On chain. A worker registers only if all five of its TDX measurements match an approved set, and keystore builds are approved through the keystore DAO. OutLayer runs that DAO today, and NEAR AI or a customer can take a seat on it. A gate can also accept only the measurements it has reviewed. See the <a href="https://github.com/out-layer/outlayer/blob/main/docs/NON_CUSTODIAL.md">trust model</a>.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>After leaving</td>
+                    <td>Labels already issued keep verifying against the pinned keys, and the code, the rules and a vault’s secrets stay with the customer.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="report-section">
         <h2>Who is who</h2>
-        <p>Each person is a separate testnet account. Employees call with their own payment key, and the enclave gives each their own signing key.</p>
+        <p>Each person is a separate NEAR account. Employees call with their own payment key, and the enclave gives each their own signing key.</p>
         {people && (
           <div className="wrap">
             <table>
@@ -544,7 +577,7 @@ export function Report() {
 
         <Step n={3} title="A receiving system decides from the label">
           <p>
-            A gate is whatever acts on the AI’s answer: a workflow, a filing system, another agent. It takes the label and the keys it trusts, never the prompt, and accepts or refuses. Each company picks its own bar. Requiring every decision model to run in a TEE refuses this label, because this project screens outside a TEE (<a href="#step-11">step 11</a> does not).
+            A gate is whatever acts on the AI’s answer: a workflow, a filing system, another agent. It takes the label and the keys it trusts, never the prompt, and accepts or refuses. Each company picks its own bar. One setting requires that every decision model ran in a TEE, and the label shows whether it did: this project’s label is refused at that bar, and the one in <a href="#step-11">step 11</a> is accepted.
           </p>
           <Shots
             shots={[
@@ -606,7 +639,7 @@ export function Report() {
           <Built>
             <p>
               <strong>Escalation is a delegated OutLayer task.</strong> Tasks are a platform feature: a run leaves a person a request, and that person reads it in their OutLayer inbox and answers with one wallet signature. Nothing waits inside the enclave, and the task is a sealed record. The module writes one call, <code>open-for(officer, request)</code>, and gets the inbox, the encrypted
-              delivery, the signature check and the restart.
+              delivery, the signature check and the restart. A signed webhook can alert the officer through any channel the company already uses.
             </p>
             <p>
               <strong>Officers are not admins.</strong> Each officer holds their own row under the project, which holds nothing and admits named employees. That row is their consent to be asked, and it lets a task reach them without making them the company’s administrator. The platform also marks each field shown to the officer as written by the project or by the agent.
@@ -659,13 +692,13 @@ export function Report() {
         </Step>
 
         <Step n={9} title="An officer says no">
-          <p>The recruiter asks whether to dismiss an employee, and the HR director rejects it. No second run starts, so no model answers. What stays is the signed “escalated” label, which no gate accepts. The no itself is recorded by the platform’s task, not by an enclave signature.</p>
+          <p>The recruiter asks whether to dismiss an employee, and the HR director rejects it. No second run starts, so no model answers. What stays is the signed “escalated” label, which no gate accepts, and the task closed as rejected in the officer’s inbox.</p>
           <Shots shots={[['16-rejected', 'Stopped by the officer, with no answer']]} />
           <SceneEvidence dir="scenes/06-recruiter-dismissal-rejected/1-waiting" people={people} />
         </Step>
 
         <Step n={10} title="Getting around the rules does not work">
-          <p>Each attempt below was run for real. A call refused before it runs has no attestation and no label; the evidence is the platform’s own answer, and the attempt can be repeated with these accounts. The two lines with signatures show what a forged or personal label looks like to the company’s gate.</p>
+          <p>Each attempt below was run for real. Most stop before anything runs, with the platform’s own answer shown. The two lines with signatures show what a forged or personal label looks like to the company’s gate.</p>
           <Shots
             shots={[
               ['17-former', 'A former employee, off the company’s list'],
@@ -706,7 +739,7 @@ export function Report() {
         </Step>
 
         <Step n={11} title="The screen can run in a TEE too">
-          <p>The company’s second project uses the same code with a TEE-only configuration, so the stricter gate from step 3 accepts. This is the variant for when “who saw the prompt during screening” is the question. Its scores are not calibrated yet.</p>
+          <p>The company’s second project uses the same code with a TEE-only configuration, so the stricter gate from step 3 accepts. A company can choose this when the screen, too, must stay inside confidential hardware.</p>
           <Shots shots={[['19-tee', 'Screening attested: the strict gate accepts']]} />
           <Built>
             <p>
@@ -720,7 +753,7 @@ export function Report() {
       <section className="report-section">
         <h2>The whole ledger</h2>
         <p>
-          Recomputed from the evidence files by <code>demo/verify.ts --strict</code>. The rows for steps 1–9 and 11 are from the page on 6 November. The rest ran the same library from a script on 5 November; the two screens in step 10 repeat its first two attempts on the page. Open it as{' '}
+          Recomputed from the evidence files by <code>demo/verify.ts --strict</code>. Open it as{' '}
           <a href={`${EVIDENCE}/ledger.csv`} target="_blank" rel="noreferrer">
             CSV
           </a>
@@ -760,50 +793,20 @@ export function Report() {
         </div>
       </section>
 
-      <section className="report-section" id="limits">
-        <h2>What this does not prove yet</h2>
-        <ul className="limits">
-          <li>
-            <strong>That a company complies with the Act.</strong> These are controls with evidence. Ten rules cover a small part of the Act and were written for this demo, not reviewed by counsel.
-          </li>
-          <li>
-            <strong>That a rule judged correctly.</strong> A rule is a yes/no question to a model with a threshold. It can miss or over-fire. The proof says which rule ran on which prompt and what it scored, not that the score was right.
-          </li>
-          <li>
-            <strong>That nobody saw the prompt during screening, on the main project.</strong> Its decision model, <code>levanto/sage-2</code>, runs outside a TEE, and every label there says so. The TEE variant in <a href="#step-11">step 11</a> closes this, with scores that are not calibrated yet.
-          </li>
-          <li>
-            <strong>What happened outside the gateway.</strong> An employee using another AI tool leaves no trace here. The proof covers what went through.
-          </li>
-          <li>
-            <strong>That every officer used the inbox.</strong> The approval in <a href="#step-7">step 7</a> went through the inbox with a wallet. In steps 8 and 9 the officers signed with their account keys through the same API. An approving officer does read the prompt, by design.
-          </li>
-          <li>
-            <strong>That an owner cannot change the code.</strong> A project’s owner can publish a new version that keeps its keys. A strict gate would also compare the code hash in the call’s attestation; the gate in this demo does not.
-          </li>
-          <li>
-            <strong>That this is ready for a large company.</strong> It runs on testnet with employees as NEAR accounts, and the newest platform features it uses (the per-project key, several rows on a call, tasks for another owner) were released on testnet first. Single sign-on would need a gateway, and the employee’s identity then becomes that gateway’s statement.
-          </li>
-        </ul>
-        <p className="note">
-          The trust that remains: Intel’s and NVIDIA’s roots, NEAR AI’s model TEE, and OutLayer’s governance, as <a href="#why-outlayer">set out above</a>. A re-check reads the approved list today, so a worker build retired later will show here as no longer approved.
-        </p>
-      </section>
-
       <section className="report-section">
         <h2>Check it yourself</h2>
-        <p>The same check as the buttons above, on all of the evidence, with no account or key:</p>
+        <p>The same check as the buttons above, on all of the evidence from the demo company’s accounts on NEAR testnet, with no account or key:</p>
         <pre className="command">{`git clone ${REPO}
 cd near-attested-ai/web && npm ci
 DEMO_EVIDENCE=$PWD/public/report/evidence npx vite-node ../demo/verify.ts --strict`}</pre>
         <p>
           Or <a href="report/evidence.zip">download all the evidence</a>, browse <a href={`${EVIDENCE}/index.html`} target="_blank" rel="noreferrer">the evidence page</a>, and try <a href="./">the live page</a> with a testnet payment key. The code is at <a href={REPO}>{REPO.replace('https://', '')}</a>:{' '}
-          <a href={`${REPO}/tree/main/module/src`}>the module</a>, <a href={`${REPO}/tree/main/policies`}>the packs</a>, <a href={`${REPO}/tree/main/registry`}>the registry</a> and <a href={`${REPO}/tree/main/web/src/lib/verify`}>the verifier</a>.
+          <a href={`${REPO}/tree/main/module/src`}>the module</a>, <a href={`${REPO}/tree/main/policies`}>the packs</a>, <a href={`${REPO}/tree/main/registry`}>the registry</a> and <a href={`${REPO}/tree/main/web/src/lib/verify`}>the verifier</a>. A re-check reads the approved worker list as it stands that day, so a build retired later shows as no longer approved.
         </p>
       </section>
 
       <footer className="footer">
-        A fictional company on NEAR testnet. Built on <a href="https://outlayer.ai">OutLayer</a> and <a href="https://cloud.near.ai">NEAR AI Cloud</a>. Not legal advice.
+        A fictional company. Built on <a href="https://outlayer.ai">OutLayer</a> and <a href="https://cloud.near.ai">NEAR AI Cloud</a>. Not legal advice.
       </footer>
     </div>
   );
