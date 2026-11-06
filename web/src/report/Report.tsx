@@ -217,7 +217,7 @@ function PolicyEvidence({ policy }: { policy: PolicyFacts | null }) {
                   <td className="mono">{r.id}</td>
                   <td>{r.cite ?? ''}</td>
                   <td>{r.action}</td>
-                  <td>{Math.round(r.threshold * 100)}%</td>
+                  <td>{r.threshold}%</td>
                 </tr>
               )),
             )}
