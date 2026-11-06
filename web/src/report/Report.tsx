@@ -575,7 +575,7 @@ export function Report() {
               ['10-waiting-label', 'The label while it waits: refused'],
             ]}
           />
-          <TaskCard dir="scenes/04-recruiter-hiring-approved" officer="acme-hr-director.testnet" />
+          <Shots shots={[['20-inbox-task', 'The same request in the HR director’s OutLayer inbox: the rule that fired, the prompt, and who wrote each field']]} />
           <Built>
             <p>
               <strong>Escalation is a delegated OutLayer task.</strong> Tasks are a platform feature: a run leaves a person a request, and that person reads it in their OutLayer inbox and answers with one wallet signature. Nothing waits inside the enclave, and the task is a sealed record. The module writes one call, <code>open-for(officer, request)</code>, and gets the inbox, the encrypted
@@ -596,13 +596,18 @@ export function Report() {
               ['12-approved-label', 'The label with the approval: accepted'],
             ]}
           />
-          <Shots shots={[['13-approved-proof', 'The second run has its own attestation, tied to the officer’s task']]} />
+          <Shots
+            shots={[
+              ['13-approved-proof', 'The second run has its own attestation, tied to the officer’s task'],
+              ['22-inbox-done', 'The officer’s inbox afterwards: the task names both runs, with their attestations'],
+            ]}
+          />
           <Built>
             <p>
-              <strong>The officer’s signature starts a second attested run,</strong> by the platform, on the employee’s key. The officer sends no transaction and pays nothing. That run takes back the sealed request and the screen as made, answers, and seals the receipt to the tab that asked. The task is bound to the hash of the company’s configuration, so if the rules change while it waits, the task is void.
+              <strong>The officer’s wallet signature starts a second attested run,</strong> by the platform, on the employee’s key. The officer signs one message, with no transaction and no fee. That run takes back the sealed request and the screen as made, answers, and seals the receipt to the tab that asked. The task is bound to the hash of the company’s configuration, so if the rules change while it waits, the task is void.
             </p>
           </Built>
-          <SceneEvidence dir="scenes/04-recruiter-hiring-approved/2-answer" people={people} extra={[['scenes/04-recruiter-hiring-approved/officer-approval.json', 'Officer’s signature', 'The signed approval of this task']]} />
+          <SceneEvidence dir="scenes/04-recruiter-hiring-approved/2-answer" people={people} />
         </Step>
 
         <Step n={8} title="The same rules send credit to the risk officer">
@@ -747,7 +752,7 @@ export function Report() {
             <strong>What happened outside the gateway.</strong> An employee using another AI tool leaves no trace here. The proof covers what went through.
           </li>
           <li>
-            <strong>That the inbox screen was used here.</strong> In these runs the officers signed with their account keys through the same API the inbox uses. An approving officer does read the prompt, by design.
+            <strong>That every officer used the inbox.</strong> The approval in <a href="#step-7">step 7</a> went through the inbox with a wallet. In steps 8 and 9 the officers signed with their account keys through the same API. An approving officer does read the prompt, by design.
           </li>
           <li>
             <strong>That an owner cannot change the code.</strong> A project’s owner can publish a new version that keeps its keys. A strict gate would also compare the code hash in the call’s attestation; the gate in this demo does not.
