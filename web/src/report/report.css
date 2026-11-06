@@ -28,7 +28,20 @@
 .evidence dd, .task dd { margin: 0; overflow-wrap: anywhere; }
 .task dl { margin: 0; }
 .task dl > div { display: grid; grid-template-columns: 130px 1fr; gap: 12px; padding: 4px 0; }
-.files { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+h5 { margin: 14px 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
+.evidence-file { position: relative; border-top: 1px solid var(--border); padding: 8px 76px 8px 0; }
+.evidence-file summary { cursor: pointer; }
+.evidence-file summary span { color: var(--muted); }
+.evidence-file textarea { display: block; width: calc(100% + 76px); margin-top: 8px; font-family: var(--mono); font-size: 12px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; resize: vertical; box-sizing: border-box; }
+.evidence-size { color: var(--faint) !important; font-size: 12px; margin: 4px 0 0 !important; }
+.evidence-download { position: absolute; top: 8px; right: 0; font-size: 13px; }
+.brief { color: var(--muted); line-height: 1.6; max-width: 800px; padding-left: 22px; margin: 0 0 16px; }
+.brief li { margin-bottom: 6px; }
+.brief a { font-weight: 600; }
+.built { border-left: 2px solid var(--accent); background: var(--surface); border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 14px 0; }
+.built h4 { margin: 0 0 8px; font-size: 12px; color: var(--accent); font-weight: 600; letter-spacing: 0.02em; }
+.built p { font-size: 14px; margin: 0 0 10px; max-width: none; }
+.built p:last-child { margin-bottom: 0; }
 .yes { color: var(--pass); font-weight: 600; }
 .no { color: var(--fail); font-weight: 600; }
 .recheck { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }

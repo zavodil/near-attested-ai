@@ -37,6 +37,8 @@ export const loadPeople = () => json<People>('people.json');
 
 export interface SceneFacts {
   dir: string;
+  /** The attested call this label's keys were pinned from. */
+  pin: string;
   attestation: AttestationRecord;
   label: LabelBody;
   companySignature: boolean;
@@ -54,6 +56,8 @@ function keysOf(people: People, label: LabelBody) {
   };
 }
 
+const pinOf = (people: People, label: LabelBody) => (label.project === people.tee_project ? 'pins/tee' : (people.employees[label.caller ?? '']?.pinned_from ?? ''));
+
 export async function loadScene(dir: string, people: People): Promise<SceneFacts> {
   const [attestation, signed] = await Promise.all([json<AttestationRecord>(`${dir}/attestation.json`), json<SignedLabel>(`${dir}/label.json`)]);
   const label = parseLabel(signed.body);
@@ -62,6 +66,7 @@ export async function loadScene(dir: string, people: People): Promise<SceneFacts
   const employees = inTee ? { [label.caller ?? '']: callerKey } : Object.fromEntries(Object.entries(people.employees).map(([account, e]) => [account, e.caller_key]));
   return {
     dir,
+    pin: pinOf(people, label),
     attestation,
     label,
     companySignature,
@@ -69,8 +74,6 @@ export async function loadScene(dir: string, people: People): Promise<SceneFacts
     gate: gate(label, companySignature, { org: people.org, packs: label.packs.map((p) => `${p.id}@${p.version}`), officers: Object.keys(people.officers), employees }, signed),
   };
 }
-
-const pinOf = (people: People, label: LabelBody) => (label.project === people.tee_project ? 'pins/tee' : (people.employees[label.caller ?? '']?.pinned_from ?? ''));
 
 async function pinProof(dir: string): Promise<ProofGroup> {
   const [attestation, input, output] = await Promise.all([json<AttestationRecord>(`${dir}/attestation.json`), json<{ input: unknown }>(`${dir}/input.json`), json<unknown>(`${dir}/output.json`)]);
@@ -95,7 +98,7 @@ export async function recheckScene(facts: SceneFacts, people: People): Promise<P
     labelPubkey: labelKey,
     callerPubkey: callerKey,
   });
-  return [await pinProof(pinOf(people, facts.label)), ...proofs];
+  return [await pinProof(facts.pin), ...proofs];
 }
 
 export interface PolicyPack {
@@ -151,3 +154,11 @@ export interface OfficerTask {
   fields: { label: string; values: string[]; written_by: string }[];
 }
 export const loadOfficerTask = (dir: string) => json<OfficerTask>(`${dir}/officer-task.json`);
+
+/** A file for reading: indented, with a label's signed body opened up. The download stays the exact bytes. */
+export async function readable(path: string): Promise<{ text: string; bytes: number }> {
+  const raw = await fetch(`${EVIDENCE}/${path}`).then((r) => r.text());
+  const value = JSON.parse(raw);
+  if (typeof value?.body === 'string') value.body = JSON.parse(value.body);
+  return { text: JSON.stringify(value, null, 2), bytes: raw.length };
+}

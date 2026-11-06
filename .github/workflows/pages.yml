@@ -45,6 +45,8 @@ jobs:
           VITE_SECRETS_ROWS: ${{ vars.VITE_SECRETS_ROWS }}
           VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE }}
           VITE_PAYMENT_KEY_SEALED: ${{ secrets.VITE_PAYMENT_KEY_SEALED }}
+      - run: zip -qr evidence.zip evidence
+        working-directory: web/dist/report
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist

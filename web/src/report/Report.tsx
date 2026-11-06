@@ -1,19 +1,37 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { ProofCard } from '../components/ProofCard';
 import { message, overall, short, type ProofGroup, type Verdict } from '../lib/verify/types';
-import { EVIDENCE, loadLedger, loadOfficerTask, loadPeople, loadPolicy, loadScene, recheckPolicy, recheckScene, type LedgerRow, type OfficerTask, type People, type PolicyFacts, type SceneFacts } from './evidence';
+import { EVIDENCE, loadLedger, loadOfficerTask, loadPeople, loadPolicy, loadScene, readable, recheckPolicy, recheckScene, type LedgerRow, type OfficerTask, type People, type PolicyFacts, type SceneFacts } from './evidence';
 
 const REPO = 'https://github.com/zavodil/near-attested-ai';
 const API = 'https://testnet-api.outlayer.ai';
 const REGISTRY = 'policies.zavodil.testnet';
 
-const when = (seconds: number) => `${new Date(seconds * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
-const file = (path: string, name: string) => (
-  <a key={name} href={`${EVIDENCE}/${path}`} target="_blank" rel="noreferrer">
-    {name}
-  </a>
-);
+const BRIEF: [number, string, string][] = [
+  [1, 'The company selects its rules.', 'Versioned EU AI Act, GDPR and company packs in a contract on NEAR, named in the company’s encrypted configuration.'],
+  [2, 'Ordinary requests pass.', 'Sealed in the browser, screened in the enclave, answered in a TEE.'],
+  [3, 'A receiving system decides from a signed label', 'that holds no prompt, signed by the company’s key and the employee’s key.'],
+  [4, 'Hardware proves it ran.', 'An Intel quote for the run, Intel and NVIDIA evidence for the model.'],
+  [5, 'Prohibited practices are blocked', 'before any model answers, and the refusal is signed.'],
+  [6, 'High-risk requests escalate to a named officer', 'through OutLayer’s delegated tasks, in their own inbox.'],
+  [7, 'An approval produces the answer,', 'in a second attested run that names the officer.'],
+  [8, 'Each rule has its own officer:', 'hiring goes to HR, credit goes to risk.'],
+  [9, 'A no ends the request', 'with no answer from any model.'],
+  [10, 'Going around it fails:', 'a former employee, an employee’s own rules or key, and a forged label are all refused.'],
+  [11, 'Screening can run in a TEE too,', 'on the same code under a stricter configuration.'],
+];
 
+const WHY: [string, string, string][] = [
+  ['Code that handles prompts where nobody can read them', 'Your wasm runs in an Intel TDX enclave. Publish it, and the workers are already running.', 'A TDX fleet, its images and upgrades'],
+  ['Proof of each run', 'An Intel quote per run, covering code, input, output, caller and project, public by call id.', 'Quote generation, collateral, an approved-build list, a public record'],
+  ['Keys no one holds', 'Keys declared in the manifest, derived in a TEE keystore whose root secret comes from the NEAR MPC network. The code asks for signatures and never sees a key.', 'A KMS or HSM, and a way to prove the vendor could not have signed'],
+  ['Each customer’s secrets and rules', 'Encrypted rows on NEAR, opened only in the enclave, with on-chain access conditions naming who may run.', 'Multi-tenant secret storage and access control'],
+  ['A person in the loop', 'Tasks: an inbox, encrypted delivery, a wallet signature, and a new attested run on approval. One call from the module.', 'A workflow service, notifications, sign-off verification and resume logic'],
+  ['Limits on where data can go', 'A host list inside the wasm, covered by its hash and enforced by the worker.', 'Egress control a customer can verify'],
+  ['Per-person access and billing', 'Payment keys: prepaid stablecoin balances, called over HTTPS. Project owners can also earn per call.', 'Metering, billing and an API gateway'],
+];
+
+const when = (seconds: number) => `${new Date(seconds * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 function Shots({ shots }: { shots: [string, string][] }) {
   return (
     <div className={`shots shots-${Math.min(shots.length, 2)}`}>
@@ -31,15 +49,41 @@ function Shots({ shots }: { shots: [string, string][] }) {
 
 const WORD: Record<Verdict, string> = { pass: 'Every check passed', warn: 'Passed, with the notes shown', fail: 'A check failed', skip: 'Not checked' };
 
-function Recheck({ run }: { run: () => Promise<ProofGroup[]> }) {
+/** One evidence file: what it is, its contents on demand, and the file itself. */
+function EvidenceFile({ path, name, note }: { path: string; name: string; note: string }) {
+  const [content, setContent] = useState<{ text: string; bytes: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const open = () => {
+    if (!content && !error) readable(path).then(setContent, (e) => setError(message(e)));
+  };
+  return (
+    <div className="evidence-file">
+      <details onToggle={(e) => e.currentTarget.open && open()}>
+        <summary>
+          <strong>{name}</strong> <span>{note}</span>
+        </summary>
+        {error && <p className="recheck-error">{error}</p>}
+        {content && <textarea readOnly rows={16} spellCheck={false} value={content.text} aria-label={name} />}
+        {content && <p className="evidence-size">{Math.round(content.bytes / 1024) || 1} KB</p>}
+      </details>
+      <a className="evidence-download" href={`${EVIDENCE}/${path}`} download={path.replaceAll('/', '-')}>
+        Download
+      </a>
+    </div>
+  );
+}
+
+function Recheck({ subject, run }: { subject: string; run: () => Promise<ProofGroup[]> }) {
   const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
   const [groups, setGroups] = useState<ProofGroup[]>([]);
+  const [checkedAt, setCheckedAt] = useState('');
   const [error, setError] = useState<string | null>(null);
   const start = async () => {
     setState('busy');
     setError(null);
     try {
       setGroups(await run());
+      setCheckedAt(new Date().toLocaleTimeString());
     } catch (e) {
       setError(message(e));
     }
@@ -55,7 +99,9 @@ function Recheck({ run }: { run: () => Promise<ProofGroup[]> }) {
       {error && <p className="recheck-error">{error}</p>}
       {groups.length > 0 && (
         <details className="recheck-detail" open>
-          <summary>{groups.length} groups of checks</summary>
+          <summary>
+            Checked at {checkedAt}: {subject}. {groups.length} groups of checks
+          </summary>
           <div className="proofs">
             {groups.map((group) => (
               <ProofCard key={group.id + group.title} group={group} />
@@ -71,7 +117,7 @@ function Yes({ ok, yes, no }: { ok: boolean; yes: string; no: string }) {
   return <span className={ok ? 'yes' : 'no'}>{ok ? yes : no}</span>;
 }
 
-function SceneEvidence({ dir, people, extra }: { dir: string; people: People | null; extra?: [string, string][] }) {
+function SceneEvidence({ dir, people, extra }: { dir: string; people: People | null; extra?: [string, string, string][] }) {
   const [facts, setFacts] = useState<SceneFacts | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -116,17 +162,16 @@ function SceneEvidence({ dir, people, extra }: { dir: string; people: People | n
           <Yes ok={facts.gate.accepted} yes="accepted" no="refused" />
           {facts.gate.reasons.length > 0 && `: ${facts.gate.reasons.join('; ')}`}
         </dd>
-        <dt>Files</dt>
-        <dd className="files">
-          {file(`${dir}/label.json`, 'label')}
-          {file(`${dir}/attestation.json`, 'attestation (Intel quote)')}
-          {file(`${dir}/receipt.json`, 'receipt')}
-          {file(`${dir}/input.json`, 'sealed input')}
-          {file(`${dir}/output.json`, 'sealed output')}
-          {extra?.map(([path, name]) => file(path, name))}
-        </dd>
       </dl>
-      <Recheck run={() => recheckScene(facts, people)} />
+      <h5>What this rests on: read or download each file</h5>
+      <EvidenceFile path={`${dir}/label.json`} name="Label" note="What a gate receives: the signed result, with no prompt in it" />
+      <EvidenceFile path={`${dir}/attestation.json`} name="Attestation" note="Intel’s quote for this run, with the hashes of its code, input and output" />
+      <EvidenceFile path={`${dir}/receipt.json`} name="Receipt" note="The full record an auditor receives: prompt, every rule’s score, answer, the models’ evidence" />
+      <EvidenceFile path={`${dir}/input.json`} name="Input" note={label.approval ? 'Empty here: the platform started this run on the officer’s signature' : 'What OutLayer’s servers saw going in: ciphertext'} />
+      <EvidenceFile path={`${dir}/output.json`} name="Output" note="What OutLayer’s servers saw coming back: ciphertext" />
+      <EvidenceFile path={`${facts.pin}/attestation.json`} name="Key source" note="The earlier attested call this employee’s and the company’s keys were pinned from" />
+      {extra?.map(([path, name, note]) => <EvidenceFile key={path} path={path} name={name} note={note} />)}
+      <Recheck subject={`call ${short(a.call_id ?? '', 8)} by ${label.caller}, its label, receipt and keys`} run={() => recheckScene(facts, people)} />
     </div>
   );
 }
@@ -150,11 +195,6 @@ function PolicyEvidence({ policy }: { policy: PolicyFacts | null }) {
         <dd>{output.org}, the owner of the project that ran</dd>
         <dt>Configuration</dt>
         <dd className="mono">{short(output.config_sha256, 12)}</dd>
-        <dt>Files</dt>
-        <dd className="files">
-          {file('policy/recruiter/output.json', 'the rules as the enclave read them')}
-          {file('policy/recruiter/attestation.json', 'attestation (Intel quote)')}
-        </dd>
       </dl>
       <div className="wrap">
         <table>
@@ -184,7 +224,10 @@ function PolicyEvidence({ policy }: { policy: PolicyFacts | null }) {
           </tbody>
         </table>
       </div>
-      <Recheck run={() => recheckPolicy(policy)} />
+      <h5>What this rests on: read or download each file</h5>
+      <EvidenceFile path="policy/recruiter/output.json" name="Rules" note="The configuration and the packs, as the enclave read them" />
+      <EvidenceFile path="policy/recruiter/attestation.json" name="Attestation" note="Intel’s quote for this call" />
+      <Recheck subject={`call ${short(a.call_id ?? '', 8)} and each pack’s hash on ${output.registry}`} run={() => recheckPolicy(policy)} />
     </div>
   );
 }
@@ -207,6 +250,15 @@ function TaskCard({ dir, officer }: { dir: string; officer: string }) {
         ))}
       </dl>
     </div>
+  );
+}
+
+function Built({ children }: { children: ReactNode }) {
+  return (
+    <aside className="built">
+      <h4>How it is built</h4>
+      {children}
+    </aside>
   );
 }
 
@@ -243,78 +295,94 @@ export function Report() {
         <div className="brand">
           <span className="brand-mark" />
           <span>Attested AI</span>
-          <span className="brand-sub">report · 6 November 2026</span>
+          <span className="brand-sub">report · November 2026</span>
         </div>
         <h1>
           EU AI Act controls,
           <br />
           <span>with proof of enforcement.</span>
         </h1>
-        <p className="lede">
-          A company selects a framework. Every AI request is evaluated against its rules, then allowed, blocked or escalated to a person. Each outcome carries cryptographic proof that the controls ran. This report follows one fictional
-          company, Acme Demo, through that on NEAR testnet, on OutLayer and NEAR AI Cloud.
-        </p>
+        <p className="lede">A gateway that lets a company’s people use AI on sensitive work, applies the company’s rules to every request, and produces evidence an outsider can check. Built on OutLayer, answered by NEAR AI Cloud, running on NEAR testnet.</p>
       </header>
 
       <section className="report-section">
-        <h2>The result</h2>
+        <h2>The idea</h2>
         <p>
-          The idea runs end to end. <strong>{attested} attested runs</strong> in this report’s evidence verify and <strong>{failed}</strong> fail, and all of it can be checked without an account or a key of ours. It runs on testnet, the prompts are
-          invented, and screening has limits that matter for a real customer: read <a href="#limits">what this does not prove</a> before relying on it.
+          The EU AI Act bans some uses of AI and requires human oversight of others, such as hiring and credit decisions. A company that lets its staff use AI has to answer for each of these: which rules applied to this request, who approved it, and can you show that the rule really ran, without
+          showing what the employee typed?
+        </p>
+        <p>Today the answer is usually a log, written by the company or its vendor. A log is a claim, and whoever wrote it could have written anything.</p>
+        <p>
+          This product replaces the claim with proof. A company selects a framework, and its rules become programmable controls: each request is allowed, blocked, or escalated to a named person. Hardware attests that those controls ran. A signed label states the result with no prompt in it, so an
+          auditor or a receiving system can verify it without seeing the data.
+        </p>
+        <p>
+          The buyer is a regulated company that wants AI in daily work and needs evidence for its own liability. The product does not make anyone compliant. It gives them controls and the proof that the controls were enforced.
+        </p>
+        <p>
+          Two platforms carry it. <strong>OutLayer</strong> runs the gateway: the rules, the signatures and the approvals, inside an Intel TDX enclave. <strong>NEAR AI Cloud</strong> serves the models, on Intel TDX and NVIDIA confidential GPUs.
+        </p>
+      </section>
+
+      <section className="report-section">
+        <h2>What was built</h2>
+        <p>One fictional company, Acme Demo, with named positions on separate accounts. Each line links to its screens, proof and design below.</p>
+        <ol className="brief">
+          {BRIEF.map(([n, title, text]) => (
+            <li key={n}>
+              <a href={`#step-${n}`}>{title}</a> {text}
+            </li>
+          ))}
+        </ol>
+        <p>
+          <strong>Status:</strong> it runs end to end on NEAR testnet. Of the runs in this report’s evidence, <strong>{attested}</strong> verify and <strong>{failed}</strong> fail, and anyone can repeat that check without an account or a key of ours. The rules are a demo set, and screening has limits a
+          real customer must weigh: see <a href="#limits">what this does not prove yet</a>.
+        </p>
+      </section>
+
+      <section className="report-section" id="why-outlayer">
+        <h2>Why build it on OutLayer</h2>
+        <p>
+          OutLayer is a compute platform on NEAR. You publish a WebAssembly module, and it runs inside an Intel TDX enclave with a proof of each run. Keys and customers’ secrets stay inside the enclave boundary, and a run can hand a decision to a person and continue after their signature. It answers over HTTPS or
+          to a NEAR contract.
+        </p>
+        <p>
+          That is most of what this product needs. The gateway itself is about 2,900 lines of Rust, tests included, plus a 330-line contract and a static web page, written between 2 and 5 November. It has no server of its own. Almost all of it is the product: rules, screening, labels and the page. OutLayer gained three general features for it that week: a per-project signing key, several secret rows on one call, and tasks for another account.
         </p>
         <div className="wrap">
           <table>
             <thead>
               <tr>
-                <th>The brief</th>
-                <th>What runs</th>
-                <th>Steps</th>
+                <th>The product needs</th>
+                <th>OutLayer gives it</th>
+                <th>In-house, a team would build and run</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>Select a compliance framework, like the EU AI Act</td>
-                <td>The company’s configuration names versioned rule packs held in a registry on NEAR: EU AI Act Art. 5 and Annex III, GDPR Art. 9, a company baseline.</td>
-                <td>
-                  <a href="#step-1">1</a>
-                </td>
-              </tr>
-              <tr>
-                <td>Evaluate every AI request automatically</td>
-                <td>Every run screens the prompt inside an attested enclave, under the company’s rules, whatever the page or the employee asks.</td>
-                <td>
-                  <a href="#step-2">2</a>, <a href="#step-10">10</a>
-                </td>
-              </tr>
-              <tr>
-                <td>Programmable controls that allow, block or escalate</td>
-                <td>All three outcomes, with each escalation routed to the officer named for that rule, and a no ending the request.</td>
-                <td>
-                  <a href="#step-2">2</a>, <a href="#step-5">5</a>–<a href="#step-9">9</a>
-                </td>
-              </tr>
-              <tr>
-                <td>Cryptographic proof the controls were enforced</td>
-                <td>A label signed by the company’s key and the employee’s key, with no prompt in it, and an Intel TDX attestation of the run. A receiving system can decide on the label alone.</td>
-                <td>
-                  <a href="#step-3">3</a>, <a href="#step-4">4</a>
-                </td>
-              </tr>
-              <tr>
-                <td>A handful of EU AI Act rules</td>
-                <td>Seven EU AI Act rules, plus one from GDPR and two company rules.</td>
-                <td>
-                  <a href="#step-1">1</a>
-                </td>
-              </tr>
+              {WHY.map(([need, gives, otherwise]) => (
+                <tr key={need}>
+                  <td>{need}</td>
+                  <td>{gives}</td>
+                  <td>{otherwise}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
+        <p>
+          <strong>It leaves NEAR AI Cloud as the model layer.</strong> OutLayer serves no models. Every screen and every answer here is NEAR AI inference, up to five calls per request, on the customer’s own NEAR AI key, which the company stores in its encrypted row. Each customer and each rule pack adds NEAR AI usage.
+        </p>
+        <p>
+          <strong>The same enclave reaches past AI.</strong> OutLayer also runs custody wallets under an owner’s policy and connectors to outside services. An approval like the one in <a href="#step-6">step 6</a> works the same way when the action is a payment rather than an answer.
+        </p>
+        <p>
+          <strong>The product stays the builder’s.</strong> The module and the rule packs are the builder’s own code and data, and the rules, customers and interface are theirs to change. What would not move to another platform are the keys, which OutLayer’s keystore derives. The platform’s own limits are stated <a href="#limits">below</a>.
+        </p>
       </section>
 
       <section className="report-section">
-        <h2>The company</h2>
-        <p>Every person is a separate testnet account. Employees call with their own payment key, and each gets their own signing key from the enclave.</p>
+        <h2>Who is who</h2>
+        <p>Each person is a separate testnet account. Employees call with their own payment key, and the enclave gives each their own signing key.</p>
         {people && (
           <div className="wrap">
             <table>
@@ -330,7 +398,7 @@ export function Report() {
                   <td className="mono">{people.company.account}</td>
                   <td>Compliance</td>
                   <td>
-                    Owns the project and its rules. Signs every label with <code>{short(people.company.label_key, 8)}</code>
+                    Owns the project and its rules. Every label is signed with the company’s key, <code>{short(people.company.label_key, 8)}</code>
                   </td>
                 </tr>
                 {Object.entries(people.employees).map(([account, e]) => (
@@ -338,7 +406,7 @@ export function Report() {
                     <td className="mono">{account}</td>
                     <td>{e.position}</td>
                     <td>
-                      Asks. Signs their own labels with <code>{short(e.caller_key, 8)}</code>
+                      Asks. Their labels are also signed with their own key, <code>{short(e.caller_key, 8)}</code>
                     </td>
                   </tr>
                 ))}
@@ -359,38 +427,49 @@ export function Report() {
           </div>
         )}
         <p className="note">
-          How to read the steps: the screens are the live page (click one to enlarge it), and each step’s evidence is the same call as its screen. <em>Re-check</em> recomputes the proof in your browser from the published files, using Intel’s signed collateral (archived by OutLayer), NVIDIA’s keys and NEAR. The receipts
-          hold the prompts in the clear because these are invented; a real company would hand a receipt to its auditor and only the label to everyone else.
+          How to read the steps: the screens are the live page (click one to enlarge it), and each step’s evidence is the same call as its screen. Open any file to read it, or download it. <em>Re-check</em> recomputes that step’s proof in your browser from those files: Intel’s signature on the quote (with Intel’s signed
+          collateral, archived by OutLayer), that the quote covers this code, input and output, the worker’s approval on NEAR, each pack’s hash on NEAR, NEAR AI’s Intel and NVIDIA evidence, and both signatures on the label. The receipts hold the prompts in the clear because these are invented; a real company
+          would hand a receipt to its auditor and only the label to everyone else. <a href="report/evidence.zip">Download all the evidence</a>.
         </p>
       </section>
 
       <section className="report-section">
-        <h2>The day, step by step</h2>
+        <h2>Step by step</h2>
 
         <Step n={1} title="The company sets the rules">
-          <p>
-            Compliance stores one configuration under the company’s own project: which packs apply, which models are allowed, which officer takes which rule. The enclave opens it on every run. The packs live in a registry on NEAR (
-            <a href={`https://testnet.nearblocks.io/address/${REGISTRY}`} target="_blank" rel="noreferrer">
-              {REGISTRY}
-            </a>
-            ), and each is checked against its hash there.
-          </p>
-          <Shots shots={[['01-rules', 'The recruiter’s page: the rules are the company’s, and the employee cannot edit them']]} />
+          <p>Compliance selects which rule packs apply, which models are allowed, and which officer takes which rule. Employees see the rules and cannot change them.</p>
+          <Shots shots={[['01-rules', 'The recruiter’s page: the rules are the company’s']]} />
+          <Built>
+            <p>
+              <strong>Rules live in a contract on NEAR.</strong> <a href={`https://testnet.nearblocks.io/address/${REGISTRY}`} target="_blank" rel="noreferrer">{REGISTRY}</a> is a small <a href={`${REPO}/blob/main/registry/src/lib.rs`}>registry</a> with publish and deprecate, and no update or delete. A version is the same bytes forever, and the chain records who published it and when. So an auditor reads
+              the same rules as the enclave, and a label names the hash of each pack it ran under. A pack is JSON: each rule is a yes/no question with a citation, a threshold and an action.
+            </p>
+            <p>
+              <strong>The company’s choice lives in an encrypted row.</strong> OutLayer stores customers’ secrets encrypted on NEAR, and only the enclave opens them. The company’s row holds its NEAR AI key and this configuration. The module’s manifest names it (<code>author_secrets</code>), so the worker opens it on every run, whatever the call asks. The organisation in a label is
+              the project’s owner, the one account that could have stored that row. Nobody can type a company’s name.
+            </p>
+          </Built>
           <PolicyEvidence policy={policy} />
         </Step>
 
         <Step n={2} title="An ordinary request is allowed">
-          <p>
-            The recruiter asks for a meeting email. The prompt is sealed in the browser to a key held in the enclave, screened against all ten rules, and answered by a model in NEAR AI’s Intel TDX and NVIDIA TEE. OutLayer’s servers only relay ciphertext.
-          </p>
+          <p>The recruiter asks for a meeting email. It passes all ten rules and is answered by a model in NEAR AI’s TEE.</p>
           <Shots shots={[['02-answer', 'Passed all ten rules, answered in a TEE, label signed']]} />
+          <Built>
+            <p>
+              <strong>The prompt is sealed in the browser</strong> to an encryption key OutLayer’s keystore holds for this project, after the page has verified the attestation of the call that gave it the key. OutLayer’s servers only relay ciphertext. The module’s manifest lists the hosts it can reach: NEAR AI, Intel and NVIDIA. The list is inside the wasm, covered by its hash, and the
+              worker enforces it.
+            </p>
+            <p>
+              <strong>Each employee pays with their own payment key,</strong> a prepaid stablecoin balance that calls OutLayer over HTTPS. A company gets per-person metering without building any, and the page needs no backend.
+            </p>
+          </Built>
           <SceneEvidence dir="scenes/01-recruiter-ordinary" people={people} />
         </Step>
 
         <Step n={3} title="A receiving system decides from the label">
           <p>
-            A gate is whatever acts on the AI’s answer: a workflow, a filing system, another agent. It takes the label and the pinned keys, never the prompt, and accepts or refuses. A company picks its own bar. Requiring every decision model to run in a TEE refuses this
-            label, because this project screens outside a TEE (<a href="#step-11">step 11</a> does not).
+            A gate is whatever acts on the AI’s answer: a workflow, a filing system, another agent. It takes the label and the keys it trusts, never the prompt, and accepts or refuses. Each company picks its own bar. Requiring every decision model to run in a TEE refuses this label, because this project screens outside a TEE (<a href="#step-11">step 11</a> does not).
           </p>
           <Shots
             shots={[
@@ -398,13 +477,18 @@ export function Report() {
               ['04-gate-refused-tee', 'A stricter rule, every decision model in a TEE: refused'],
             ]}
           />
+          <Built>
+            <p>
+              <strong>Every label is signed twice,</strong> by two keys the manifest declares and OutLayer’s keystore derives. The <code>label</code> key is one per project, so a gate pins one company key. The <code>caller</code> key is per account and out of reach of any other account’s run, so a gate can tell who asked at the signature level. The module never handles a key: it asks
+              the platform to sign. Both keys are published by an attested call, so a gate learns them from a proof rather than from a person.
+            </p>
+          </Built>
           <p className="note">This step and the next use the call from step 2.</p>
         </Step>
 
         <Step n={4} title="What stands behind the label">
           <p>
-            OutLayer’s proof: Intel signed a quote from TDX hardware, the quote commits to this code, input, output, caller and project, and the worker’s build is on the approved list on NEAR. NEAR AI’s proof: Intel and NVIDIA vouch for the model’s TEE, and that TEE signed this
-            exact answer.
+            Two separate proofs. OutLayer’s: Intel signed a quote from TDX hardware, and the quote commits to this code, input, output, caller and project. NEAR AI’s: Intel and NVIDIA vouch for the model’s TEE, and that TEE signed this exact answer.
           </p>
           <Shots
             shots={[
@@ -412,25 +496,31 @@ export function Report() {
               ['06-proof-model', 'The answering model in NEAR AI’s TEE'],
             ]}
           />
+          <Built>
+            <p>
+              <strong>OutLayer attests every run,</strong> with no setup. The record is public by call id, and a worker is admitted only if all five of its TDX measurements match a set approved on NEAR. The module also checks NEAR AI’s evidence inside the enclave before sealing the receipt, and this page checks it again, so a reader relies on neither.
+            </p>
+          </Built>
         </Step>
 
         <Step n={5} title="A prohibited practice is blocked">
-          <p>
-            The analyst asks for a social scoring system. Art. 5(1)(c) fires inside the enclave, and the answering model is never called. The refusal is signed too, so the company can prove it stopped this request, and the gate refuses the label.
-          </p>
+          <p>The analyst asks for a social scoring system. Art. 5(1)(c) fires, the answering model is never called, and the refusal is signed too. The company can prove it stopped this request.</p>
           <Shots
             shots={[
               ['07-blocked', 'Stopped inside the enclave, with each rule’s score'],
               ['08-blocked-label', 'The signed label of a refusal: the gate refuses it'],
             ]}
           />
+          <Built>
+            <p>
+              <strong>Enforcement is in the code the quote covers.</strong> The module decides inside the enclave, before any answering call. The hash in the attestation identifies that code, so the receipt’s “no answer” comes with proof of which program produced it.
+            </p>
+          </Built>
           <SceneEvidence dir="scenes/03-analyst-blocked" people={people} />
         </Step>
 
         <Step n={6} title="A hiring decision waits for the HR director">
-          <p>
-            The recruiter asks to rank candidates. Annex III(4) escalates: nothing is answered, and a task lands in the inbox of the officer the configuration names for that rule. The label so far says “escalated”, and a gate refuses it.
-          </p>
+          <p>The recruiter asks to rank candidates. Annex III(4) escalates. Nothing is answered, and the request appears in the inbox of the officer the company named for that rule.</p>
           <Shots
             shots={[
               ['09-waiting-hr', 'The prompt held; the page waits for the officer'],
@@ -438,13 +528,20 @@ export function Report() {
             ]}
           />
           <TaskCard dir="scenes/04-recruiter-hiring-approved" officer="acme-hr-director.testnet" />
+          <Built>
+            <p>
+              <strong>Escalation is a delegated OutLayer task.</strong> Tasks are a platform feature: a run leaves a person a request, and that person reads it in their OutLayer inbox and answers with one wallet signature. Nothing waits inside the enclave, and the task is a sealed record. The module writes one call, <code>open-for(officer, request)</code>, and gets the inbox, the encrypted
+              delivery, the signature check and the restart.
+            </p>
+            <p>
+              <strong>Officers are not admins.</strong> Each officer holds their own row under the project, which holds nothing and admits named employees. That row is their consent to be asked, and it lets a task reach them without making them the company’s administrator. The platform also marks each field shown to the officer as written by the project or by the agent.
+            </p>
+          </Built>
           <SceneEvidence dir="scenes/04-recruiter-hiring-approved/1-waiting" people={people} />
         </Step>
 
         <Step n={7} title="The HR director approves, and the answer comes back">
-          <p>
-            The officer’s signature starts a second attested run, as the same employee. That run takes back the sealed request and the screen as it was made, answers, and seals the receipt to the tab that asked. The label now names the officer and the task, and the same gate accepts it.
-          </p>
+          <p>The label now names the officer and the task, and the same gate that refused it accepts it.</p>
           <Shots
             shots={[
               ['11-approved', 'The answer, with who approved and the screen that escalated'],
@@ -452,11 +549,16 @@ export function Report() {
             ]}
           />
           <Shots shots={[['13-approved-proof', 'The second run has its own attestation, tied to the officer’s task']]} />
-          <SceneEvidence dir="scenes/04-recruiter-hiring-approved/2-answer" people={people} extra={[['scenes/04-recruiter-hiring-approved/officer-approval.json', 'officer’s signature']]} />
+          <Built>
+            <p>
+              <strong>The officer’s signature starts a second attested run,</strong> by the platform, on the employee’s key. The officer sends no transaction and pays nothing. That run takes back the sealed request and the screen as made, answers, and seals the receipt to the tab that asked. The task is bound to the hash of the company’s configuration, so if the rules change while it waits, the task is void.
+            </p>
+          </Built>
+          <SceneEvidence dir="scenes/04-recruiter-hiring-approved/2-answer" people={people} extra={[['scenes/04-recruiter-hiring-approved/officer-approval.json', 'Officer’s signature', 'The signed approval of this task']]} />
         </Step>
 
         <Step n={8} title="The same rules send credit to the risk officer">
-          <p>The analyst asks for a loan decision. Annex III(5)(b) fires, and this one goes to the risk officer rather than HR. The configuration names an officer per rule, and the task opens for that officer alone.</p>
+          <p>The analyst asks for a loan decision. Annex III(5)(b) fires, and this one goes to the risk officer rather than HR.</p>
           <Shots
             shots={[
               ['14-waiting-risk', 'Routed to the risk officer'],
@@ -464,7 +566,19 @@ export function Report() {
             ]}
           />
           <TaskCard dir="scenes/05-analyst-credit-approved" officer="acme-risk-officer.testnet" />
-          <SceneEvidence dir="scenes/05-analyst-credit-approved/2-answer" people={people} extra={[['scenes/05-analyst-credit-approved/1-waiting/label.json', 'label while it waited'], ['scenes/05-analyst-credit-approved/officer-approval.json', 'officer’s signature']]} />
+          <Built>
+            <p>
+              <strong>Routing is one line of configuration per rule or pack.</strong> The task opens for that officer alone. Changing who approves what needs no new code and no redeploy, and the configuration’s hash in the label shows which version applied.
+            </p>
+          </Built>
+          <SceneEvidence
+            dir="scenes/05-analyst-credit-approved/2-answer"
+            people={people}
+            extra={[
+              ['scenes/05-analyst-credit-approved/1-waiting/label.json', 'Label while it waited', 'Signed before the approval'],
+              ['scenes/05-analyst-credit-approved/officer-approval.json', 'Officer’s signature', 'The signed approval of this task'],
+            ]}
+          />
         </Step>
 
         <Step n={9} title="An officer says no">
@@ -474,13 +588,18 @@ export function Report() {
         </Step>
 
         <Step n={10} title="Getting around the rules does not work">
-          <p>Each attempt below was run for real. A call refused before it runs has no attestation and no label; the evidence is the platform’s own answer, and the same attempt can be repeated with these accounts. The two lines with signatures show what a forged or personal label looks like to the company’s gate.</p>
+          <p>Each attempt below was run for real. A call refused before it runs has no attestation and no label; the evidence is the platform’s own answer, and the attempt can be repeated with these accounts. The two lines with signatures show what a forged or personal label looks like to the company’s gate.</p>
           <Shots
             shots={[
               ['17-former', 'A former employee, off the company’s list'],
               ['18-own-rules', 'An employee naming rules of their own'],
             ]}
           />
+          <Built>
+            <p>
+              <strong>Enforcement sits below the page.</strong> The row’s access condition, checked by the keystore, decides who may run: removing a name from it ends that person’s access. The worker refuses a call whose row redefines a name from the company’s row, so an employee cannot swap the rules or the key. Both come with the platform. The module adds two refusals of its own: a configuration from a row the call names, and an escalation whose officer’s row the call left out.
+            </p>
+          </Built>
           <div className="wrap">
             <table>
               <thead>
@@ -510,8 +629,13 @@ export function Report() {
         </Step>
 
         <Step n={11} title="The screen can run in a TEE too">
-          <p>The company’s second project uses the same code with a TEE-only configuration: the rules are put to a model in NEAR AI’s TEE, so the stricter gate from step 3 accepts. This is the variant to show when “who saw the prompt during screening” is the question. Its scores are not calibrated yet.</p>
+          <p>The company’s second project uses the same code with a TEE-only configuration, so the stricter gate from step 3 accepts. This is the variant for when “who saw the prompt during screening” is the question. Its scores are not calibrated yet.</p>
           <Shots shots={[['19-tee', 'Screening attested: the strict gate accepts']]} />
+          <Built>
+            <p>
+              <strong>Same wasm, same hash, another project.</strong> One published build serves many companies, each as a project of its own account with its own keys and row. A new customer is a configuration rather than a deployment. A pack can name a TEE model and ask through chat completions, and <code>screening_tee</code> requires a TEE for every pack.
+            </p>
+          </Built>
           <SceneEvidence dir="scenes/13-tee-screen" people={people} />
         </Step>
       </section>
@@ -560,7 +684,7 @@ export function Report() {
       </section>
 
       <section className="report-section" id="limits">
-        <h2>What this does not prove</h2>
+        <h2>What this does not prove yet</h2>
         <ul className="limits">
           <li>
             <strong>That a company complies with the Act.</strong> These are controls with evidence. Ten rules cover a small part of the Act and were written for this demo, not reviewed by counsel.
@@ -569,7 +693,7 @@ export function Report() {
             <strong>That a rule judged correctly.</strong> A rule is a yes/no question to a model with a threshold. It can miss or over-fire. The proof says which rule ran on which prompt and what it scored, not that the score was right.
           </li>
           <li>
-            <strong>That nobody saw the prompt during screening, on the main project.</strong> Its decision model, <code>levanto/sage-2</code>, runs outside a TEE, and every label there says so. The TEE variant in step 11 closes this, with scores that are not calibrated yet.
+            <strong>That nobody saw the prompt during screening, on the main project.</strong> Its decision model, <code>levanto/sage-2</code>, runs outside a TEE, and every label there says so. The TEE variant in <a href="#step-11">step 11</a> closes this, with scores that are not calibrated yet.
           </li>
           <li>
             <strong>What happened outside the gateway.</strong> An employee using another AI tool leaves no trace here. The proof covers what went through.
@@ -581,10 +705,12 @@ export function Report() {
             <strong>That an owner cannot change the code.</strong> A project’s owner can publish a new version that keeps its keys. A strict gate would also compare the code hash in the call’s attestation; the gate in this demo does not.
           </li>
           <li>
-            <strong>That this is ready for a large company.</strong> It is testnet, with employees as NEAR accounts. Single sign-on would need a gateway, and the employee’s identity then becomes that gateway’s statement.
+            <strong>That this is ready for a large company.</strong> It runs on testnet with employees as NEAR accounts, and the newest platform features it uses (the per-project key, several rows on a call, tasks for another owner) were released on testnet first. Single sign-on would need a gateway, and the employee’s identity then becomes that gateway’s statement.
           </li>
         </ul>
-        <p className="note">The trust that remains: Intel’s and NVIDIA’s roots, the approved worker list on NEAR, and NEAR AI’s model TEE. A re-check reads that list today, so a worker build retired later will show here as no longer approved.</p>
+        <p className="note">
+          The trust that remains: Intel’s and NVIDIA’s roots, NEAR AI’s model TEE, and OutLayer’s platform. At this stage OutLayer itself holds the keys that approve worker builds and upgrade its contracts, as its <a href="https://github.com/out-layer/outlayer/blob/main/docs/NON_CUSTODIAL.md">documentation</a> states. A re-check reads the approved list today, so a worker build retired later will show here as no longer approved.
+        </p>
       </section>
 
       <section className="report-section">
@@ -594,29 +720,9 @@ export function Report() {
 cd near-attested-ai/web && npm ci
 DEMO_EVIDENCE=$PWD/public/report/evidence npx vite-node ../demo/verify.ts --strict`}</pre>
         <p>
-          Or browse <a href={`${EVIDENCE}/index.html`} target="_blank" rel="noreferrer">the evidence page</a>, and try <a href="./">the live page</a> with a testnet payment key.
+          Or <a href="report/evidence.zip">download all the evidence</a>, browse <a href={`${EVIDENCE}/index.html`} target="_blank" rel="noreferrer">the evidence page</a>, and try <a href="./">the live page</a> with a testnet payment key. The code is at <a href={REPO}>{REPO.replace('https://', '')}</a>:{' '}
+          <a href={`${REPO}/tree/main/module/src`}>the module</a>, <a href={`${REPO}/tree/main/policies`}>the packs</a>, <a href={`${REPO}/tree/main/registry`}>the registry</a> and <a href={`${REPO}/tree/main/web/src/lib/verify`}>the verifier</a>.
         </p>
-      </section>
-
-      <section className="report-section">
-        <h2>For engineers</h2>
-        <ul className="limits">
-          <li>
-            <strong>Company:</strong> one project per company, same wasm. The manifest’s <code>author_secrets</code> opens the owner’s row on every run, holding the NEAR AI key and the configuration, so the project owner is the organisation. The row’s access condition is who may run. A call that names a clashing row is refused by the worker.
-          </li>
-          <li>
-            <strong>Signing:</strong> two keystore-derived ed25519 keys in the <a href={`${REPO}/blob/main/module/manifest.json`}>manifest</a>. <code>label</code> has no caller and is one key per project; <code>caller</code> is per account and out of reach of any other account’s run. Keys are pinned from an attested <code>enclave_key</code> call.
-          </li>
-          <li>
-            <strong>Screening:</strong> <a href={`${REPO}/tree/main/policies`}>packs</a> are JSON, immutable per version, hashed over their bytes in a <a href={`${REPO}/tree/main/registry`}>registry contract</a>. <a href={`${REPO}/blob/main/module/src/screening.rs`}>The module</a> reads them from the chain inside the enclave, then scores each rule.
-          </li>
-          <li>
-            <strong>Escalation:</strong> <a href={`${REPO}/blob/main/module/src/escalate.rs`}>a task opened for the officer</a> under the configuration’s hash. A changed configuration voids it. The approval starts <code>answer_escalated</code> with every row named again.
-          </li>
-          <li>
-            <strong>Verification:</strong> <a href={`${REPO}/tree/main/web/src/lib/verify`}>the page’s library</a>, which the buttons here and <code>demo/verify.ts</code> both call: Intel DCAP in WebAssembly, NVIDIA tokens against NVIDIA’s keys, signatures, and pack hashes read from NEAR.
-          </li>
-        </ul>
       </section>
 
       <footer className="footer">
