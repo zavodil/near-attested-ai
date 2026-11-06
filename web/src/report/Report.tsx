@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ProofCard } from '../components/ProofCard';
 import { message, overall, short, type ProofGroup, type Verdict } from '../lib/verify/types';
 import { EVIDENCE, loadLedger, loadOfficerTask, loadPeople, loadPolicy, loadScene, readable, recheckPolicy, recheckScene, type LedgerRow, type OfficerTask, type People, type PolicyFacts, type SceneFacts } from './evidence';
@@ -33,16 +33,43 @@ const WHY: [string, string, string][] = [
 
 const when = (seconds: number) => `${new Date(seconds * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
 function Shots({ shots }: { shots: [string, string][] }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [open, setOpen] = useState<[string, string] | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    dialog.current?.showModal();
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
   return (
-    <div className={`shots shots-${Math.min(shots.length, 2)}`}>
-      {shots.map(([name, caption]) => (
-        <figure key={name}>
-          <a href={`report/shots/${name}.jpg`} target="_blank" rel="noreferrer">
-            <img src={`report/shots/${name}.jpg`} alt={caption} width={985} height={813} loading="lazy" />
+    <div className="shots">
+      {shots.map((shot) => (
+        <figure key={shot[0]}>
+          <a
+            href={`report/shots/${shot[0]}.jpg`}
+            onClick={(e) => {
+              // A modified click keeps its meaning: a new tab, a new window.
+              if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+              e.preventDefault();
+              setOpen(shot);
+            }}
+          >
+            <img src={`report/shots/${shot[0]}.jpg`} alt={shot[1]} width={985} height={813} loading="lazy" />
           </a>
-          <figcaption>{caption}</figcaption>
+          <figcaption>{shot[1]}</figcaption>
         </figure>
       ))}
+      {open && (
+        <dialog ref={dialog} className="shot-view" onClose={() => setOpen(null)} onClick={() => dialog.current?.close()}>
+          <img src={`report/shots/${open[0]}.jpg`} alt={open[1]} />
+          <p>{open[1]}</p>
+          <button className="secondary" aria-label="Close" onClick={() => dialog.current?.close()}>
+            Close
+          </button>
+        </dialog>
+      )}
     </div>
   );
 }
@@ -573,9 +600,9 @@ export function Report() {
             shots={[
               ['09-waiting-hr', 'The prompt held; the page waits for the officer'],
               ['10-waiting-label', 'The label while it waits: refused'],
+              ['20-inbox-task', 'The same request in the HR director’s OutLayer inbox: the rule that fired, the prompt, and who wrote each field'],
             ]}
           />
-          <Shots shots={[['20-inbox-task', 'The same request in the HR director’s OutLayer inbox: the rule that fired, the prompt, and who wrote each field']]} />
           <Built>
             <p>
               <strong>Escalation is a delegated OutLayer task.</strong> Tasks are a platform feature: a run leaves a person a request, and that person reads it in their OutLayer inbox and answers with one wallet signature. Nothing waits inside the enclave, and the task is a sealed record. The module writes one call, <code>open-for(officer, request)</code>, and gets the inbox, the encrypted
@@ -594,15 +621,11 @@ export function Report() {
             shots={[
               ['11-approved', 'The answer, with who approved and the screen that escalated'],
               ['12-approved-label', 'The label with the approval: accepted'],
-            ]}
-          />
-          <Shots
-            shots={[
               ['13-approved-proof', 'The second run has its own attestation, tied to the officer’s task'],
               ['21-inbox-carrying-out', 'The inbox right after the signature: the task is carried out'],
+              ['22-inbox-done', 'The inbox afterwards: the task names both runs, with their attestations, the same call ids as the evidence below'],
             ]}
           />
-          <Shots shots={[['22-inbox-done', 'The inbox afterwards: the task names both runs, with their attestations, the same call ids as the evidence below']]} />
           <Built>
             <p>
               <strong>The officer’s wallet signature starts a second attested run,</strong> by the platform, on the employee’s key. The officer signs one message, with no transaction and no fee. That run takes back the sealed request and the screen as made, answers, and seals the receipt to the tab that asked. The task is bound to the hash of the company’s configuration, so if the rules change while it waits, the task is void.

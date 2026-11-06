@@ -17,10 +17,15 @@
 .report-step { margin: 0 0 40px; padding-top: 24px; border-top: 1px solid var(--border); scroll-margin-top: 12px; }
 .report-step h3 { display: flex; align-items: center; gap: 10px; font-size: 18px; margin: 0 0 10px; }
 .step-n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--accent); }
-.shots { display: grid; gap: 14px; margin: 14px 0; }
-.shots-2 { grid-template-columns: 1fr 1fr; }
+.shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin: 14px 0; }
 .shots figure { margin: 0; }
-.shots img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border); }
+.shots figure img { display: block; width: 100%; height: auto; aspect-ratio: 985 / 813; object-fit: cover; object-position: top; border-radius: 8px; border: 1px solid var(--border); }
+.shots a { cursor: zoom-in; }
+.shot-view { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 96vh; overflow: visible; cursor: zoom-out; text-align: center; }
+.shot-view::backdrop { background: rgba(0, 0, 0, 0.88); }
+.shot-view img { display: block; max-width: 96vw; max-height: 86vh; width: auto; height: auto; margin: 0 auto; border-radius: 10px; }
+.shot-view p { color: #e8ecf2; font-size: 13px; margin: 10px 0 0; max-width: none; }
+.shot-view button { position: fixed; top: 14px; right: 14px; }
 .shots figcaption { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
 .evidence, .task { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; margin: 14px 0; font-size: 13.5px; }
 .evidence h4, .task h4 { margin: 0 0 10px; font-size: 13px; color: var(--muted); font-weight: 600; }
@@ -54,7 +59,7 @@ h5 { margin: 14px 0 8px; font-size: 13px; color: var(--muted); font-weight: 600;
 .limits strong { color: var(--text); }
 .command { font-family: var(--mono); font-size: 12.5px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; overflow-x: auto; margin: 0 0 14px; }
 @media (max-width: 720px) {
-  .shots-2 { grid-template-columns: 1fr; }
+  .shots { grid-template-columns: 1fr 1fr; }
   .evidence dl, .task dl > div { grid-template-columns: 1fr; gap: 2px 0; }
   .evidence dd { margin-bottom: 8px; }
 }
