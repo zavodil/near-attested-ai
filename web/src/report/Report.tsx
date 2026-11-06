@@ -750,7 +750,7 @@ export function Report() {
         </Step>
       </section>
 
-      <section className="report-section">
+      <section className="report-section report-wide">
         <h2>The whole ledger</h2>
         <p>
           Recomputed from the evidence files by <code>demo/verify.ts --strict</code>. Open it as{' '}
@@ -795,10 +795,23 @@ export function Report() {
 
       <section className="report-section">
         <h2>Check it yourself</h2>
-        <p>The same check as the buttons above, on all of the evidence from the demo company’s accounts on NEAR testnet, with no account or key:</p>
+        <p>One command re-checks all of the evidence from the demo company’s accounts on NEAR testnet, with no account or key:</p>
         <pre className="command">{`git clone ${REPO}
 cd near-attested-ai/web && npm ci
+
+# For every run, and every call the keys were pinned from:
+#   - Intel signed the TDX quote
+#   - the quote commits to this code, input, output, caller and project
+#   - the worker's measurements are approved on NEAR
+# For every label:
+#   - the company's and the employee's signatures hold, against those pinned keys
+#   - the receipt hashes to the digest in the attested output
+#   - the label matches the receipt's prompt and answer
+#   - the company's gate accepts or refuses it: organisation, employee, packs, officer
+# It also renames the employee in one label, to show that a forgery is refused.
+# It writes ledger.csv and index.html, and exits non-zero if a receipt or attestation fails.
 DEMO_EVIDENCE=$PWD/public/report/evidence npx vite-node ../demo/verify.ts --strict`}</pre>
+        <p>The buttons in each step also check each pack’s hash on NEAR and NEAR AI’s Intel and NVIDIA evidence for the models.</p>
         <p>
           Or <a href="report/evidence.zip">download all the evidence</a>, browse <a href={`${EVIDENCE}/index.html`} target="_blank" rel="noreferrer">the evidence page</a>, and try <a href="./">the live page</a> with a testnet payment key. The code is at <a href={REPO}>{REPO.replace('https://', '')}</a>:{' '}
           <a href={`${REPO}/tree/main/module/src`}>the module</a>, <a href={`${REPO}/tree/main/policies`}>the packs</a>, <a href={`${REPO}/tree/main/registry`}>the registry</a> and <a href={`${REPO}/tree/main/web/src/lib/verify`}>the verifier</a>. A re-check reads the approved worker list as it stands that day, so a build retired later shows as no longer approved.

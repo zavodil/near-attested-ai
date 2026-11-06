@@ -20,6 +20,7 @@
 .report-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
 .report-card h4 { margin: 0 0 6px; font-size: 14.5px; }
 .report-card p { margin: 0; font-size: 13.5px; }
+.report-wide { width: min(1440px, calc(100vw - 48px)); margin-left: calc((100% - min(1440px, calc(100vw - 48px))) / 2); }
 .report-question { font-size: 17px; margin: 26px 0 10px; }
 .report-step { margin: 0 0 40px; padding-top: 24px; border-top: 1px solid var(--border); scroll-margin-top: 12px; }
 .report-step h3 { display: flex; align-items: center; gap: 10px; font-size: 18px; margin: 0 0 10px; }
