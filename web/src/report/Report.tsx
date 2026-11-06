@@ -490,7 +490,7 @@ export function Report() {
 
       <section className="report-section">
         <h2>Who is who</h2>
-        <p>Each person is a separate NEAR account. Employees call with their own payment key, and the enclave gives each their own signing key.</p>
+        <p>Each person is a separate NEAR account.</p>
         {people && (
           <div className="wrap">
             <table>
@@ -506,7 +506,7 @@ export function Report() {
                   <td className="mono">{people.company.account}</td>
                   <td>Compliance</td>
                   <td>
-                    Owns the project and its rules. Every label is signed with the company’s key, <code>{short(people.company.label_key, 8)}</code>
+                    Owns the project and its rules. Signs every label
                   </td>
                 </tr>
                 {Object.entries(people.employees).map(([account, e]) => (
@@ -514,7 +514,7 @@ export function Report() {
                     <td className="mono">{account}</td>
                     <td>{e.position}</td>
                     <td>
-                      Asks. Their labels are also signed with their own key, <code>{short(e.caller_key, 8)}</code>
+                      Asks. Also signs their own labels
                     </td>
                   </tr>
                 ))}
