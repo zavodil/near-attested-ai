@@ -1,7 +1,69 @@
 # Attested AI
 
-**Ask an AI model about privileged material, under the EU AI Act and your
-company's rules, and keep a proof of what happened to it.**
+**Regulatory controls on a company's use of AI, with proof they were enforced
+on every request.** Each framework is a policy pack. Today there are packs for
+EU AI Act Art. 5 and Annex III, GDPR Art. 9 and a corporate baseline. Any other
+regulation or in-house rulebook is one more pack.
+
+## Check it in a minute, with no account or key
+
+Node 18 or later and an internet connection (the check reads NEAR testnet and
+Intel's collateral):
+
+```bash
+git clone https://github.com/zavodil/near-attested-ai
+cd near-attested-ai/web
+npm ci
+npm test                                                                      # 17 tests: envelopes, labels, the gate, the verifiers
+DEMO_EVIDENCE=$PWD/public/report/evidence npx vite-node ../demo/verify.ts --strict
+```
+
+The last command re-checks a fictional company's day on NEAR testnet: 17
+requests from a recruiter, an analyst, a former employee and the HR officer,
+blocked, escalated, approved and answered. It ends with
+
+```
+17 rows, 0 broken, pins verified. evidence/index.html, evidence/ledger.csv
+```
+
+For every run, and for every call the signing keys were pinned from, it checks:
+- Intel signed the TDX quote, and the worker's measurements are approved on NEAR;
+- the quote commits to this code, input, output, caller and project;
+- the receipt hashes to the digest in the attested output.
+
+For every label, it checks:
+- the company's and the employee's signatures hold against the pinned keys;
+- the label matches the receipt;
+- the company's gate accepts or refuses it on the organisation, the employee, the packs and the officer.
+
+It also renames the employee in one label, to show that the forgery is refused,
+and exits non-zero if any receipt or attestation fails. The table it prints is
+the ledger at the end of the report.
+
+- **[The report](https://zavodil.github.io/near-attested-ai/report.html)** walks
+  through the same day step by step. Each step has its screen, its evidence files
+  and a **Re-check** button that verifies it again in your browser, this time
+  including each pack's hash on NEAR and NEAR AI's Intel and NVIDIA evidence.
+- **[The live page](https://zavodil.github.io/near-attested-ai/)** asks a
+  question through the gateway. It needs an OutLayer testnet payment key
+  ([Run it yourself](#run-it-yourself)).
+- **Building the module** needs Rust (the toolchain is pinned in
+  `module/rust-toolchain.toml`) and OutLayer's SDK 0.2.2 next to this repo:
+  `git clone https://github.com/out-layer/outlayer ../near-offshore`, then
+  `cd module && cargo test && ./build.sh`.
+
+## Built on the NEAR stack
+
+| What | On NEAR | Where |
+|---|---|---|
+| **Policies** | A registry contract that only publishes: no update, no delete. The enclave reads each pack by `id@version` through NEAR RPC and hashes the bytes; the label carries the hash and block height, and the verifier asks the chain for the same hash. | `registry/`, `module/src/pack.rs` |
+| **Identity** | NEAR accounts. The company's account owns the project, and each employee and officer has their own account. A call carries the caller's account, and the attestation commits to it. | `demo/roles.json` |
+| **Access** | The company's rules and NEAR AI key are a secrets row stored encrypted in OutLayer's NEAR contract, under an access condition. The demo admits employees by account name. The same condition can admit by a Sputnik DAO role, an account pattern such as `*.acme.near`, a token balance, an NFT or a deadline. Removing an account from the row ends its access. A row's owner is the only account that can replace it. | Steps 1 and 10 of the report |
+| **Approvals** | An escalation is a task for the officer's account in the OutLayer inbox. The officer signs in with a NEAR wallet and approves with a wallet signature. The run that answers carries the approval in its label. | `module/src/escalate.rs` |
+| **Keys** | The company's and the employee's label keys are derived inside the TEE from a master obtained through NEAR MPC confidential key derivation. One key per project and one per account, never stored. | `module/src/label.rs` |
+| **Code that ran** | The project and its versions are registered in OutLayer's NEAR contract. The worker's TDX measurements are approved on a NEAR contract, and the verifier checks them there. | `web/src/lib/verify/outlayer.ts` |
+| **Payment** | Each employee calls with their own payment key from OutLayer's NEAR contract. | `web/src/lib/session.ts` |
+| **Model** | NEAR AI Cloud's confidential models: Intel TDX plus NVIDIA confidential GPUs. Their evidence is checked in the enclave and again in the browser. | `module/src/evidence.rs` |
 
 People don't buy AI privacy, they buy protection from liability. This demo
 shows what that looks like when it is enforced by hardware instead of
