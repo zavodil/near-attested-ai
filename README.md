@@ -32,8 +32,10 @@ evaluated, and the strictest one that fires decides:
   wallet signature, and only then does a second attested run answer.
 
 **Proof that the controls were enforced.** Every run carries an Intel quote
-over the code, input, output and caller. Each request ends with a label signed
-by the company's key and the employee's key. It lists the framework versions
+over the code, input, output and caller, so it names the exact binary that
+produced the result. Each request ends with a label signed by the company's key
+and the employee's key, keys that OutLayer issues only to this project's runs
+and that the code never sees. It lists the framework versions
 applied with their hashes, the verdict and the approver, and it holds no prompt
 text. A receiving system verifies the label offline. An auditor re-checks the
 Intel quotes, NVIDIA's verdict and the pack hashes on NEAR from public data,
@@ -106,6 +108,28 @@ the ledger at the end of the report.
 | **Code that ran** | The project and its versions are registered in OutLayer's NEAR contract. The worker's TDX measurements are approved on a NEAR contract, and the verifier checks them there. | `web/src/lib/verify/outlayer.ts` |
 | **Payment** | Each employee calls with their own payment key from OutLayer's NEAR contract. | `web/src/lib/session.ts` |
 | **Model** | NEAR AI Cloud's confidential models: Intel TDX plus NVIDIA confidential GPUs. Their evidence is checked in the enclave and again in the browser. | `module/src/evidence.rs` |
+
+## What OutLayer provides
+
+The gateway is one WebAssembly module. Everything around it comes from
+[OutLayer](https://outlayer.ai), and the module calls it through the SDK:
+
+| OutLayer feature | Used here for | Where | Without it you would build |
+|---|---|---|---|
+| **Confidential execution** | The module runs in an Intel TDX enclave on OutLayer's workers. Publishing a version is enough to deploy it. | `module/build.sh` | A TDX fleet, its images and its upgrades |
+| **Proof of each run** | An Intel quote for every call covers the code hash, input, output, caller and project. It is public by call id. | `web/src/lib/verify/outlayer.ts` | Quote generation, collateral, an approved-build list and a public record |
+| **Signing keys** | The label's two ed25519 keys are declared in the manifest. One is the project's (`caller: "none"`) and one is per account. The keystore derives them from NEAR MPC confidential key derivation and issues them only to this project's runs. The code asks for signatures and never sees a key. | `module/manifest.json`, `module/src/label.rs` | A KMS or HSM, and a way to show the operator could not have signed |
+| **Encryption keys** | The enclave key the browser seals prompts to. It is derived per project and caller, never stored, and pinned through an attested call. | `module/src/envelope.rs` | Key management for end-to-end encryption to an enclave |
+| **Secrets on chain, applied by the author** | The company's row (rules and NEAR AI key) is applied to every run of its project, whatever the caller names (`author_secrets`). It is decrypted only in the TEE, and only for accounts its access condition admits. | `module/src/config.rs` | Multi-tenant secret storage, access control, and a way to stop users from swapping the rules |
+| **Delegation of secrets** | One call names up to five rows. An officer's own row admits the employees whose escalations they take, which links officers to employees without making anyone an admin. | `web/src/lib/outlayer.ts` | A role and consent model across accounts |
+| **Delegated tasks** | An escalation is `open-for` the officer: an inbox, encrypted delivery, a wallet signature, and a new attested run on approval. A signed webhook can notify through any channel. | `module/src/escalate.rs` | A workflow service, notifications, sign-off verification and resume logic |
+| **NEAR RPC from the enclave** | The packs are read from the registry contract inside the enclave, at a known block height. | `module/src/pack.rs` | An oracle or a trusted relay |
+| **Egress allowlist** | The four hosts the enclave can reach are listed in the manifest. The manifest is part of the wasm hash, and the worker enforces the list. | `module/manifest.json` | Egress control that a customer can verify |
+| **Payment keys** | Each employee calls over HTTPS with a prepaid key of their own, and removing them from the company's row ends their access. | `web/src/lib/session.ts` | Metering, billing and an API gateway |
+
+A new customer is a configuration: one published build serves every company,
+each with its own keys, rules and officers, and there are no servers to run
+per customer.
 
 ---
 
