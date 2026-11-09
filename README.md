@@ -1,9 +1,51 @@
-# Attested AI
+# Provable AI Compliance
 
-**Regulatory controls on a company's use of AI, with proof they were enforced
-on every request.** Each framework is a policy pack. Today there are packs for
-EU AI Act Art. 5 and Annex III, GDPR Art. 9 and a corporate baseline. Any other
-regulation or in-house rulebook is one more pack.
+**Pick a compliance framework, and every AI request your company makes is
+checked against it automatically: allowed, blocked or escalated to a human,
+with cryptographic proof that the controls were enforced.**
+
+The usual approach is a proxy with a filter and a log. The vendor runs the
+filter, writes the log, and could skip both without anyone knowing. That log is
+a claim. This project replaces the claim with proof, end to end, from the
+employee's browser to the GPU that answers.
+
+**Select a framework.** A company picks the frameworks it is held to: EU AI Act
+Art. 5 (prohibited practices) and Annex III (high-risk uses), GDPR Art. 9
+(special-category data), and its own baseline. Each one is a versioned policy
+pack in a NEAR contract that publishes but never edits. A pack's rules are
+yes/no questions with a threshold and an action. Any other regulation or
+corporate policy is one more pack, and the company's configuration names the
+ones that apply.
+
+**Programmable controls, enforced inside a TEE.** The prompt is encrypted in
+the browser to an Intel TDX enclave on [OutLayer](https://outlayer.ai), and
+the servers in between see only ciphertext. Inside the enclave, every rule is
+evaluated, and the strictest one that fires decides:
+
+- **Allow.** The request goes to a [NEAR AI Cloud](https://cloud.near.ai)
+  confidential model (Intel TDX + NVIDIA confidential GPUs), and its hardware
+  signs the answer.
+- **Block.** A prohibited practice stops before any model sees it.
+- **Escalate.** A hiring or credit decision becomes a task, opened from inside
+  the enclave, for the officer the company named for that rule: hiring goes to
+  HR, credit to risk. The officer approves in their OutLayer inbox with a NEAR
+  wallet signature, and only then does a second attested run answer.
+
+**Proof that the controls were enforced.** Every run carries an Intel quote
+over the code, input, output and caller. Each request ends with a label signed
+by the company's key and the employee's key. It lists the framework versions
+applied with their hashes, the verdict and the approver, and it holds no prompt
+text. A receiving system verifies the label offline. An auditor re-checks the
+Intel quotes, NVIDIA's verdict and the pack hashes on NEAR from public data,
+with no account and no key of ours.
+
+**Going around it fails.** A former employee, an employee who brings their own
+rules or NEAR AI key, and a forged label are all refused.
+
+It runs end to end on NEAR testnet, from a static page with no backend.
+[The report](https://zavodil.github.io/near-attested-ai/report.html) follows
+one company's day through it. Each step has its screen, attestation and signed
+label.
 
 ## Check it in a minute, with no account or key
 
@@ -64,33 +106,6 @@ the ledger at the end of the report.
 | **Code that ran** | The project and its versions are registered in OutLayer's NEAR contract. The worker's TDX measurements are approved on a NEAR contract, and the verifier checks them there. | `web/src/lib/verify/outlayer.ts` |
 | **Payment** | Each employee calls with their own payment key from OutLayer's NEAR contract. | `web/src/lib/session.ts` |
 | **Model** | NEAR AI Cloud's confidential models: Intel TDX plus NVIDIA confidential GPUs. Their evidence is checked in the enclave and again in the browser. | `module/src/evidence.rs` |
-
-People don't buy AI privacy, they buy protection from liability. This demo
-shows what that looks like when it is enforced by hardware instead of
-promised:
-
-- **Sealed.** The prompt is encrypted in your browser to a key that exists only
-  inside an attested [OutLayer](https://outlayer.ai) enclave. Nobody in the
-  middle can read it: not OutLayer's servers, not its database, not anyone who
-  subpoenas them.
-- **Screened.** Inside the enclave, policy packs — EU AI Act Art. 5, Annex III,
-  GDPR Art. 9, a company baseline — read from a registry on NEAR are put to a
-  decision model as yes/no questions. A rule that fires **blocks** the prompt
-  there, or **escalates** it: a task for the officer the company names, in
-  their own OutLayer inbox, approved with their own wallet.
-- **Answered in a TEE.** The answering model runs in
-  [NEAR AI Cloud](https://cloud.near.ai)'s confidential computing: Intel TDX
-  plus NVIDIA confidential GPUs.
-- **Labelled and proven.** The answer comes with a signed label — which packs
-  applied, what they decided, who approved, nothing of the prompt — that any
-  downstream system can check, and a receipt with the Intel quotes, NVIDIA's
-  GPU verdict and the model's signature. Your browser re-checks every one of
-  them, trusting Intel and NVIDIA and nobody else.
-
-It runs end to end on NEAR testnet, from a static page with no backend.
-
-[The report](https://zavodil.github.io/near-attested-ai/report.html) follows one
-company's day through it, each step with its screen, attestation and signed label.
 
 ---
 
