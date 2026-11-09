@@ -40,8 +40,9 @@ evaluated, and the strictest one that fires decides:
 **Proof that the controls were enforced.** Every run carries an Intel quote
 over the code, input, output and caller, so it names the exact binary that
 produced the result. Each request ends with a label signed by the company's key
-and the employee's key, keys that OutLayer issues only to this project's runs
-and that the code never sees. It lists the framework versions
+and the employee's key. Both keys come from confidential key derivation (CKD)
+by the NEAR MPC network, are bound to this project, and are used only inside
+the TEE; the code never sees them. The label lists the framework versions
 applied with their hashes, the verdict and the approver, and it holds no prompt
 text. A receiving system verifies the label offline. An auditor re-checks the
 Intel quotes, NVIDIA's verdict and the pack hashes on NEAR from public data,
@@ -107,7 +108,7 @@ the ledger at the end of the report.
 | **Identity** | NEAR accounts. The company's account owns the project, and each employee and officer has their own account. A call carries the caller's account, and the attestation commits to it. | `demo/roles.json` |
 | **Access** | The company's rules and NEAR AI key are a secrets row stored encrypted in OutLayer's NEAR contract, under an access condition. The demo admits employees by account name. The same condition can admit by a Sputnik DAO role, an account pattern such as `*.acme.near`, a token balance, an NFT or a deadline. Removing an account from the row ends its access. A row's owner is the only account that can replace it. | Steps 1 and 10 of the report |
 | **Approvals** | An escalation is a task for the officer's account in the OutLayer inbox. The officer signs in with a NEAR wallet and approves with a wallet signature. The run that answers carries the approval in its label. | `module/src/escalate.rs` |
-| **Keys** | The company's and the employee's label keys are derived inside the TEE from a master obtained through NEAR MPC confidential key derivation. One key per project and one per account, never stored. | `module/src/label.rs` |
+| **Keys** | The company's and the employee's label keys come from confidential key derivation (CKD) by the NEAR MPC network, bound to this project: one key for the project and one per account. They are derived and used only inside the TEE and are never stored. | `module/src/label.rs` |
 | **Code that ran** | The project and its versions are registered in OutLayer's NEAR contract. The worker's TDX measurements are approved on a NEAR contract, and the verifier checks them there. | `web/src/lib/verify/outlayer.ts` |
 | **Payment** | Each employee calls with their own payment key from OutLayer's NEAR contract. | `web/src/lib/session.ts` |
 | **Model** | NEAR AI Cloud's confidential models: Intel TDX plus NVIDIA confidential GPUs. Their evidence is checked in the enclave and again in the browser. | `module/src/evidence.rs` |
@@ -121,7 +122,7 @@ The gateway is one WebAssembly module. Everything around it comes from
 |---|---|---|---|
 | **Confidential execution** | The module runs in an Intel TDX enclave on OutLayer's workers. Publishing a version is enough to deploy it. | `module/build.sh` | A TDX fleet, its images and its upgrades |
 | **Proof of each run** | An Intel quote for every call covers the code hash, input, output, caller and project. It is public by call id. | `web/src/lib/verify/outlayer.ts` | Quote generation, collateral, an approved-build list and a public record |
-| **Signing keys** | The label's two ed25519 keys are declared in the manifest. One is the project's (`caller: "none"`) and one is per account. The keystore derives them from NEAR MPC confidential key derivation and issues them only to this project's runs. The code asks for signatures and never sees a key. | `module/manifest.json`, `module/src/label.rs` | A KMS or HSM, and a way to show the operator could not have signed |
+| **Signing keys** | The label's two ed25519 keys are declared in the manifest. One is the project's (`caller: "none"`) and one is per account. Both come from NEAR MPC confidential key derivation (CKD), bound to this project, and are used only inside the TEE. The code asks for signatures and never sees a key. | `module/manifest.json`, `module/src/label.rs` | A KMS or HSM, and a way to show the operator could not have signed |
 | **Encryption keys** | The enclave key the browser seals prompts to. It is derived per project and caller, never stored, and pinned through an attested call. | `module/src/envelope.rs` | Key management for end-to-end encryption to an enclave |
 | **Secrets on chain, applied by the author** | The company's row (rules and NEAR AI key) is applied to every run of its project, whatever the caller names (`author_secrets`). It is decrypted only in the TEE, and only for accounts its access condition admits. | `module/src/config.rs` | Multi-tenant secret storage, access control, and a way to stop users from swapping the rules |
 | **Delegation of secrets** | One call names up to five rows. An officer's own row admits the employees whose escalations they take, which links officers to employees without making anyone an admin. | `web/src/lib/outlayer.ts` | A role and consent model across accounts |
@@ -257,8 +258,8 @@ data alone. **Copy label** gives a gate what it needs and nothing more.
 ```
 
 Signed twice with ed25519 over `"outlayer-attested-ai-label/1\n"` and the
-label's exact bytes, by two keys the keystore derives inside the TEE; the
-enclave never sees either.
+label's exact bytes, by two keys from NEAR MPC confidential key derivation
+(CKD), derived inside the keystore's TEE; the module never sees either.
 
 - The **company's key**: one for the project, whoever calls (`"caller": "none"`).
   Each company runs its own project, so a gate pins one key per company, from

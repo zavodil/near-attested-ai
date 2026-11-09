@@ -589,7 +589,7 @@ export function Report() {
           />
           <Built>
             <p>
-              <strong>Every label is signed twice,</strong> by two keys the manifest declares and OutLayer’s keystore derives. The <code>label</code> key is one per project, so a gate pins one company key. The <code>caller</code> key is per account and out of reach of any other account’s run, so a gate can tell who asked at the signature level. The module never handles a key: it asks
+              <strong>Every label is signed twice,</strong> by two keys the manifest declares, from confidential key derivation (CKD) by the NEAR MPC network. The <code>label</code> key is one per project, so a gate pins one company key. The <code>caller</code> key is per account and out of reach of any other account’s run, so a gate can tell who asked at the signature level. The module never handles a key: it asks
               the platform to sign. Both keys are published by an attested call, so a gate learns them from a proof rather than from a person.
             </p>
           </Built>
