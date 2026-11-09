@@ -334,15 +334,17 @@ export function Report() {
       <header className="hero">
         <div className="brand">
           <span className="brand-mark" />
-          <span>Attested AI</span>
+          <span>Provable AI Compliance</span>
           <span className="brand-sub">report · November 2026</span>
         </div>
         <h1>
-          EU AI Act controls,
+          Compliance controls for AI,
           <br />
-          <span>with proof of enforcement.</span>
+          <span>with proof they were enforced.</span>
         </h1>
-        <p className="lede">A gateway that lets a company’s people use AI on sensitive work, applies the company’s rules to every request, and produces evidence an outsider can check. Built on OutLayer and NEAR AI Cloud, running on NEAR.</p>
+        <p className="lede">
+          Pick a compliance framework, and every AI request your company makes is checked against it automatically: allowed, blocked or escalated to a human, with cryptographic proof that the controls were enforced. Built on OutLayer and NEAR AI Cloud, running on NEAR.
+        </p>
       </header>
 
       <section className="report-section">

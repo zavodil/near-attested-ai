@@ -4,6 +4,12 @@
 checked against it automatically: allowed, blocked or escalated to a human,
 with cryptographic proof that the controls were enforced.**
 
+> **[Read the full report →](https://zavodil.github.io/near-attested-ai/report.html)**
+> It walks through a whole company's day step by step: the rules it picks,
+> blocked, escalated and approved requests, and the attempts to get around them.
+> Each step has screenshots, every attestation and signed label, and a button
+> that re-checks it in your browser.
+
 The usual approach is a proxy with a filter and a log. The vendor runs the
 filter, writes the log, and could skip both without anyone knowing. That log is
 a claim. This project replaces the claim with proof, end to end, from the
@@ -45,9 +51,6 @@ with no account and no key of ours.
 rules or NEAR AI key, and a forged label are all refused.
 
 It runs end to end on NEAR testnet, from a static page with no backend.
-[The report](https://zavodil.github.io/near-attested-ai/report.html) follows
-one company's day through it. Each step has its screen, attestation and signed
-label.
 
 ## Check it in a minute, with no account or key
 
