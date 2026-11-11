@@ -113,6 +113,21 @@ the ledger at the end of the report.
 | **Payment** | Each employee calls with their own payment key from OutLayer's NEAR contract. | `web/src/lib/session.ts` |
 | **Model** | NEAR AI Cloud's confidential models: Intel TDX plus NVIDIA confidential GPUs. Their evidence is checked in the enclave and again in the browser. | `module/src/evidence.rs` |
 
+## The same core, called by a smart contract
+
+The building blocks here are not tied to a company proxy.
+[Off-chain smart contracts](https://github.com/zavodil/offchain-smart-contract)
+([report](https://zavodil.github.io/offchain-smart-contract/)) is built on the
+same concept and the same tools: rulebooks published to this registry, a pinned
+build on OutLayer in Intel TDX that asks Sage every rule and lets the strictest
+fired action decide, a signing key from NEAR MPC CKD bound to that build, and
+this project's in-browser attestation verifier. There the caller is a NEAR
+contract: it calls a policy gate and, in the same transaction through
+yield/resume, gets a signed verdict that the gate checks on chain before any
+money moves. Live on NEAR testnet: a grant fund that pays or refuses USDC
+applications, and a prediction-market factory that never creates a market on a
+person's death.
+
 ## What OutLayer provides
 
 The gateway is one WebAssembly module. Everything around it comes from
@@ -482,12 +497,6 @@ The build embeds only the sealed value. The link is
 sits after `#`, so the browser never sends it to the host. The page unseals the
 payment key and immediately removes the decrypt key from the address bar.
 Give the payment key only a small balance, and delete it when the demo is over.
-
-## Disclosure
-
-As the hackathon rules require: the author also entered
-[Off-chain smart contracts for financial decisions](https://github.com/zavodil/offchain-smart-contract).
-The two projects are independent.
 
 ## License
 
