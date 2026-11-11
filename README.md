@@ -483,13 +483,11 @@ sits after `#`, so the browser never sends it to the host. The page unseals the
 payment key and immediately removes the decrypt key from the address bar.
 Give the payment key only a small balance, and delete it when the demo is over.
 
-## The other entry
+## Disclosure
 
-[Off-chain smart contracts for financial decisions](https://github.com/zavodil/offchain-smart-contract)
-is the other entry by the same author. It uses the same rulebook engine for
-contracts on NEAR: a grant fund and a memecoin launchpad ask a policy gate,
-which runs the judge in Intel TDX, checks the signed verdict on chain, and
-pays, refuses or hands the case to people.
+As the hackathon rules require: the author also entered
+[Off-chain smart contracts for financial decisions](https://github.com/zavodil/offchain-smart-contract).
+The two projects are independent.
 
 ## License
 
