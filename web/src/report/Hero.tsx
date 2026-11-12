@@ -251,6 +251,28 @@ export function Hero() {
           <span>{example.who} asks</span>“{receipt?.prompt ?? '…'}”
         </p>
 
+        <div className="tx-strip">
+          <div>
+            <span>Rules</span>
+            4 packs on <code>policies.zavodil.testnet</code>, named in the company’s encrypted configuration
+          </div>
+          <div>
+            <span>Code</span>
+            one published build; its hash is in every Intel quote
+          </div>
+          <div>
+            <span>Proof</span>
+            Intel quote for the run; Intel and NVIDIA evidence for the model
+          </div>
+          <div className={`tx-verdict ${settled ? `on v-${decision}` : ''}`}>
+            <i>{settled ? (decision === 'pass' ? '✓' : decision === 'block' ? '✕' : '!') : '…'}</i>
+            <div>
+              <span>Outcome</span>
+              <b>{settled ? example.outcome : 'running…'}</b>
+            </div>
+          </div>
+        </div>
+
         <svg viewBox="0 0 1200 616" className="tx-svg" role="img" aria-label="The request is sealed, screened in the enclave, answered in a TEE or stopped, and signed">
           <defs>
             <linearGradient id="lane" x1="0" x2="1">
@@ -286,6 +308,16 @@ export function Hero() {
               </text>
             </g>
           ))}
+
+          {settled && (
+            <g className={`tx-out tx-out-${decision} lit`}>
+              <circle cx={N.gate} cy={Y} r="18" className="tx-out-base" />
+              <circle cx={N.gate} cy={Y} r="18" />
+              <text x={N.gate} y={Y + 6} textAnchor="middle" className="tx-out-mark">
+                {decision === 'pass' ? '✓' : decision === 'block' ? '✕' : '!'}
+              </text>
+            </g>
+          )}
 
           <foreignObject x={N.enclaveIn - 18} y="208" width={N.enclaveOut - N.enclaveIn + 36} height="400">
             <div className={`enclave ${inEnclave ? 'busy' : ''} ${judged ? 'judged' : ''}`}>
@@ -348,24 +380,6 @@ export function Hero() {
           </foreignObject>
         </svg>
 
-        <div className="tx-strip">
-          <div>
-            <span>Rules</span>
-            4 packs on {`policies.zavodil.testnet`}, named in the company’s encrypted configuration
-          </div>
-          <div>
-            <span>Code</span>
-            one published build; its hash is in every Intel quote
-          </div>
-          <div>
-            <span>Proof</span>
-            Intel quote for the run; Intel and NVIDIA evidence for the model
-          </div>
-          <div>
-            <span>Outcome</span>
-            {settled ? <b className={decision === 'block' ? 'no' : 'yes'}>{example.outcome}</b> : '…'}
-          </div>
-        </div>
         <div className={`tx-why ${settled ? 'shown' : ''}`}>
           <b>Why:</b> {settled ? example.why : 'the request is on its way…'}
         </div>

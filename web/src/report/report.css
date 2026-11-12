@@ -333,3 +333,19 @@ button.primary.big:disabled { opacity: 0.7; cursor: progress; }
 .label-card dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
 .tx-pass .enclave-rules li, .tx-block .enclave-rules li, .tx-escalate .enclave-rules li { padding: 1px 0; }
 .enclave-rules li.enclave-pack { margin-top: 5px; }
+/* The facts strip above the diagram, with the outcome */
+.tx .tx-strip { grid-template-columns: 1fr 1fr 1fr 1.25fr; gap: 10px; margin: 12px 6px 4px; font-size: 13.5px; }
+.tx .tx-strip > div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; line-height: 1.4; }
+.tx .tx-strip code { font-size: 12px; }
+.tx-verdict { display: flex; align-items: center; gap: 12px; transition: all 0.35s ease; }
+.tx-verdict i { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-style: normal; font-weight: 800; font-size: 20px; border: 2px dashed var(--border-strong); color: var(--faint); }
+.tx-verdict b { display: block; font-size: 15.5px; line-height: 1.3; }
+.tx-verdict.on { animation: pop 0.45s ease-out; }
+.tx .tx-strip > .tx-verdict.v-pass { background: var(--pass-bg); border-color: var(--pass); color: var(--pass); }
+.tx .tx-strip > .tx-verdict.v-block { background: var(--fail-bg); border-color: var(--fail); color: var(--fail); }
+.tx .tx-strip > .tx-verdict.v-escalate { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+.tx-verdict.on i { border-style: solid; border-color: currentColor; color: currentColor; background: var(--bg); box-shadow: 0 0 18px currentColor; }
+.tx-verdict.on span { color: currentColor; opacity: 0.85; }
+.tx-out-pass circle { fill: var(--pass-bg); stroke: var(--pass); }
+@media (max-width: 760px) { .tx .tx-strip { grid-template-columns: 1fr; } }
+.tx-out circle.tx-out-base { fill: var(--surface); stroke: none; }
