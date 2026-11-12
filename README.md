@@ -522,6 +522,10 @@ sits after `#`, so the browser never sends it to the host. The page unseals the
 payment key and immediately removes the decrypt key from the address bar.
 Give the payment key only a small balance, and delete it when the demo is over.
 
+## Our other NEAR HACKATHON project
+
+[**Attested Arena**](https://github.com/zavodil/attested-arena) — a model benchmark whose test set nobody has ever seen, not even its author: tasks are written and sealed inside a TEE, models duel on them in NEAR AI's confidential inference, every score is re-checkable from NEAR state, and proven improvements are paid by contract. It is independent of this project — a different problem and different code — and reuses one piece of it: the checks of NEAR AI's attestation (Intel quote, NVIDIA verdict, EIP-191 response signature).
+
 ## License
 
 MIT or Apache-2.0, at your option.
