@@ -388,6 +388,7 @@ export function Hero() {
         <a href="#/day" className="primary-link">
           The whole company’s day, step by step →
         </a>
+        <a href="#/why-now">Why it matters now →</a>
         <a href="#/attacks">Every attempt to get around it →</a>
         <a href="#/verify">Verify every run in your browser →</a>
       </div>

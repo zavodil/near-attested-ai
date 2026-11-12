@@ -7,6 +7,7 @@ import { Footer, PageNav, SeeNext } from './nav';
 import { REGISTRY } from './parts';
 import { VerifyPage } from './Verify';
 import { WhyPage } from './Why';
+import { WhyNowPage } from './WhyNow';
 
 const BRIEF: [number, string, string][] = [
   [1, 'The company selects its rules.', 'Versioned EU AI Act, GDPR and company packs in a contract on NEAR, named in the company’s encrypted configuration.'],
@@ -231,6 +232,7 @@ export function Report() {
   }
   if (hash.startsWith('#/day')) return <DayPage focus={hash.split('/')[2]} />;
   if (hash.startsWith('#/attacks')) return <AttacksPage />;
+  if (hash.startsWith('#/why-now')) return <WhyNowPage />;
   if (hash.startsWith('#/why') || hash === '#why-outlayer') return <WhyPage />;
   if (hash.startsWith('#/verify')) return <VerifyPage />;
   return <Overview />;

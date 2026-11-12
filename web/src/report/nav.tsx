@@ -1,6 +1,7 @@
 /** The same navigation on every page of the report. */
 const LINKS: [string, string, string][] = [
   ['overview', '#/', 'Overview'],
+  ['whynow', '#/why-now', 'Why now'],
   ['day', '#/day', 'A company’s day'],
   ['attacks', '#/attacks', 'Getting around it'],
   ['why', '#/why', 'Why OutLayer'],
@@ -26,6 +27,7 @@ export function PageNav({ current }: { current: string }) {
 }
 
 const NEXT: [string, string, string, string][] = [
+  ['whynow', '#/why-now', 'Why it matters now', 'The law that already applies, real cases from Samsung to Air Canada and Workday, why a log is not proof, and the size of the market.'],
   ['day', '#/day', 'A company’s day', 'Rules selected, a request answered, a prohibited practice blocked, hiring and credit decisions approved by their officers, a no. Every step with its screens and evidence.'],
   ['attacks', '#/attacks', 'Getting around it', 'A former employee, an employee’s own rules or key, a personal project and a forged label. Each one refused.'],
   ['why', '#/why', 'Why OutLayer', 'What the platform gives this product out of the box, what NEAR AI gains, and who controls each layer.'],
