@@ -524,7 +524,7 @@ Give the payment key only a small balance, and delete it when the demo is over.
 
 ## Our other NEAR HACKATHON project
 
-[**Attested Arena**](https://github.com/zavodil/attested-arena) — a model benchmark whose test set nobody has ever seen, not even its author: tasks are designed by code inside an Intel TDX enclave, worded by a model in NEAR AI's confidential inference, and sealed to the judge's exact build; models duel on them in NEAR AI's confidential inference, every score is re-checkable in your browser from NEAR state, and proven improvements are paid by contract. It is independent of this project — a different problem and different code — and reuses one piece of it: the checks of NEAR AI's attestation (Intel quote, NVIDIA verdict, EIP-191 response signature).
+[**Attested Arena**](https://github.com/zavodil/attested-arena) — a model benchmark whose test set nobody has ever seen, not even its author: tasks are designed by code inside an Intel TDX enclave, worded by a model in NEAR AI's confidential inference, and sealed to the judge's exact build; models duel on them there, every score is re-checkable in your browser from NEAR state, and proven improvements are paid by contract. It is independent of this project — a different problem and different code — and reuses one piece of it: the checks of NEAR AI's attestation (Intel quote, NVIDIA verdict, EIP-191 response signature).
 
 ## License
 
