@@ -98,10 +98,16 @@ export async function verifyModelCall(call: ModelCall, receipt: Receipt, role: '
     steps.push({ ...fail('NVIDIA confirms the GPUs', gpu.error ?? 'no NVIDIA token'), enclave: enclave(gpu) });
   } else {
     const verdict = await verifyNvidiaToken(gpu.token);
+    const issued = verdict.issuedAt ? new Date(verdict.issuedAt * 1000).toISOString().slice(0, 10) : 'earlier';
     steps.push({
       ...(verdict.signatureOk && verdict.overall === true
         ? pass('NVIDIA confirms the GPUs', 'Evidence for this nonce; NRAS token signed by NVIDIA, overall result: true')
-        : fail(
+        : verdict.retired && gpu.ok && verdict.overall === true
+          ? warn(
+              'NVIDIA confirms the GPUs',
+              `Evidence for this nonce, overall result: true. NVIDIA rotates its signing keys within days and no longer publishes the one that signed this token (issued ${issued}), so this browser cannot check that signature; the enclave checked it at the time, inside the attested run`,
+            )
+          : fail(
             'NVIDIA confirms the GPUs',
             verdict.error ?? (!verdict.signatureOk ? 'the token’s signature does not verify' : 'NVIDIA’s verdict is not true'),
           )),

@@ -130,6 +130,7 @@ export interface LedgerRow {
   title: string;
   who: string;
   position: string;
+  mode: string;
   outcome: string;
   rules: string;
   approved_by: string;
@@ -139,6 +140,8 @@ export interface LedgerRow {
   attestation: string;
   company_gate: string;
   why: string;
+  call_id: string;
+  label_file: string;
 }
 
 /** `ledger.csv` as `demo/verify.ts` writes it: every field quoted. */

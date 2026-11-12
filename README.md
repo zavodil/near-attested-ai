@@ -53,6 +53,30 @@ rules or NEAR AI key, and a forged label are all refused.
 
 It runs end to end on NEAR testnet, from a static page with no backend.
 
+## The policy is an off-chain smart contract
+
+Smart contracts are still in the pre-AI era: a contract cannot call a model,
+keep a prompt private or run for more than one block, so AI policies run on a
+server that everyone has to take at its word. Here the company's AI policy runs
+as an **off-chain smart contract**: the computation leaves the chain, the
+guarantees of a contract stay.
+
+| A smart contract has | The company's AI policy here |
+|---|---|
+| Code fixed by its hash | One published wasm. Its hash is in every Intel quote, and a gate can require that exact build. |
+| Rules and state on chain | The packs in a publish-only registry contract; the company's configuration in an encrypted row on NEAR that only the company's account can replace. |
+| Accounts as callers | Each employee and officer is a NEAR account, and the attestation commits to the caller. |
+| Execution anyone can check | Every run is attested by Intel TDX hardware: this code, this input, this output, this caller. Public by call id. |
+| Results nobody can forge | Each label is signed by keys from NEAR MPC confidential key derivation, bound to this project and used only inside the TEE. |
+| Authority it grants | An escalation opens a task for a named account, and the approval is that account's wallet signature. |
+
+What it adds that an on-chain contract cannot do: it calls an AI model, keeps
+the prompt sealed (OutLayer's servers see ciphertext, the text opens only in
+the enclave), and runs for seconds. Here it is called over HTTPS from the
+employee's browser, and a receiving system checks the signed label before it
+acts. The same pattern called from a NEAR contract, in one transaction, is
+below in [The same core, called by a smart contract](#the-same-core-called-by-a-smart-contract).
+
 ## Check it in a minute, with no account or key
 
 Node 18 or later and an internet connection (the check reads NEAR testnet and
@@ -115,10 +139,10 @@ the ledger at the end of the report.
 
 ## The same core, called by a smart contract
 
-The building blocks here are not tied to a company proxy.
+The off-chain smart contract here is not tied to a company proxy.
 [Off-chain smart contracts](https://github.com/zavodil/offchain-smart-contract)
-([report](https://zavodil.github.io/offchain-smart-contract/)) is built on the
-same concept and the same tools: rulebooks published to this registry, a pinned
+([report](https://zavodil.github.io/offchain-smart-contract/)) applies the same
+concept with the same tools: rulebooks published to this registry, a pinned
 build on OutLayer in Intel TDX that asks Sage every rule and lets the strictest
 fired action decide, a signing key from NEAR MPC CKD bound to that build, and
 this project's in-browser attestation verifier. There the caller is a NEAR

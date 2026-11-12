@@ -11,6 +11,8 @@ export interface GpuVerdict {
   overall: boolean | null;
   issuedAt: number | null;
   kid: string | null;
+  /** NVIDIA no longer publishes the key that signed the token: it rotates them within days. */
+  retired?: boolean;
   error?: string;
 }
 
@@ -39,7 +41,7 @@ export async function verifyNvidiaToken(token: string): Promise<GpuVerdict> {
   try {
     if (header.alg !== 'ES384') throw new Error(`unexpected algorithm ${header.alg}`);
     const jwk = (await keys()).find((k) => (k as { kid?: string }).kid === header.kid);
-    if (!jwk) throw new Error(`NVIDIA no longer publishes key ${header.kid}`);
+    if (!jwk) return { ...base, signatureOk: false, retired: true, error: `NVIDIA no longer publishes key ${header.kid}` };
     const key = await crypto.subtle.importKey(
       'jwk',
       { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y },
