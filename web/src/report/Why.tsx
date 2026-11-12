@@ -43,8 +43,7 @@ const BUILD: [string, string, number, number][] = [
 
 /** Monthly running cost for two regions, from list prices. */
 const RUN: [string, string, number, string][] = [
-  ['TDX workers', '4 × Azure DC8es v5 (8 vCPU, 32 GiB), 2 per region', 1120, 'https://cloudprice.net/vm/Standard_DC4es_v5'],
-  ['TDX key service', '2 × Azure DC4es v5, 1 per region', 280, 'https://cloudprice.net/vm/Standard_DC4es_v5'],
+  ['TDX servers', '4 servers with Intel TDX, 2 per region, with the memory that compiling and running jobs needs; the key service runs in a confidential VM on the same hosts', 4480, ''],
   ['Hardware security modules', '2 × AWS CloudHSM at $1.60 an hour, for high availability', 2300, 'https://aws.amazon.com/cloudhsm/pricing/'],
   ['Databases, queue, load balancers', 'Managed Postgres and Redis with replicas, in both regions', 900, ''],
   ['Monitoring and logs', 'Metrics, alerts, log retention', 200, ''],
@@ -166,7 +165,7 @@ function BuildItYourself() {
         </li>
       </ul>
       <p className="note">
-        Server prices: Azure DCesv5 pay-as-you-go, from about $140 a month for 4 vCPU (DC4es v5) and $560 for 16 vCPU (DC16es v5), so about $280 for the 8 vCPU size; AWS CloudHSM $1.60 per HSM-hour in us-east-1. Databases and monitoring are typical managed-service prices. Rates vary by region and contract.
+        Server prices: a TDX server with enough memory for compiling and running jobs costs about $1,100 a month at current memory prices; a small cloud TDX VM with 32 GiB lists at about $280 (Azure DC8es v5), too little memory for this work. AWS CloudHSM $1.60 per HSM-hour in us-east-1. Databases and monitoring are typical managed-service prices. Rates vary by region and contract.
       </p>
     </section>
   );
