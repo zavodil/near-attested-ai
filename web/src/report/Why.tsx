@@ -25,6 +25,153 @@ const WHY: [string, string, string][] = [
 ];
 
 
+
+/** Building the same stack in-house: hours per part, low and high. Our estimate. */
+const BUILD: [string, string, number, number][] = [
+  ['Confidential compute', 'TDX images, measured boot, reproducible builds, a deploy pipeline', 240, 400],
+  ['Proof of each run', 'A quote per run, Intel DCAP verification, collateral caching, an approved-build list, a public record by call id', 240, 400],
+  ['Signing keys', 'HSM integration, key release only to an attested enclave, a key per project and per person, rotation', 200, 360],
+  ['Customer secrets', 'Encrypted rows per tenant, access conditions, replacement by the owner only', 200, 320],
+  ['Approvals', 'Tasks, an inbox, signature checks, notifications, resuming a sealed request after a yes', 280, 480],
+  ['Model evidence', 'Intel and NVIDIA evidence for each model call and its response signature, checked in the enclave and in the browser', 120, 240],
+  ['Egress limits', 'A host list enforced by the platform, not by the code', 80, 160],
+  ['Access and billing', 'Prepaid keys per person, metering, an API gateway, rate limits', 200, 360],
+  ['Rules registry and verifier', 'A publish-only registry and a public verifier page', 120, 200],
+  ['Redundancy', 'Two regions, failover, backups, recovery runbooks', 160, 280],
+  ['Hardening', 'Security review fixes, tests, documentation', 160, 320],
+];
+
+/** Monthly running cost for two regions, from list prices. */
+const RUN: [string, string, number, string][] = [
+  ['TDX workers', '4 × Azure DC8es v5 (8 vCPU, 32 GiB), 2 per region', 1120, 'https://cloudprice.net/vm/Standard_DC4es_v5'],
+  ['TDX key service', '2 × Azure DC4es v5, 1 per region', 280, 'https://cloudprice.net/vm/Standard_DC4es_v5'],
+  ['Hardware security modules', '2 × AWS CloudHSM at $1.60 an hour, for high availability', 2300, 'https://aws.amazon.com/cloudhsm/pricing/'],
+  ['Databases, queue, load balancers', 'Managed Postgres and Redis with replicas, in both regions', 900, ''],
+  ['Monitoring and logs', 'Metrics, alerts, log retention', 200, ''],
+];
+
+function BuildItYourself() {
+  const [rate, setRate] = useState(100);
+  const [ops, setOps] = useState(80);
+  const low = BUILD.reduce((a, [, , l]) => a + l, 0);
+  const high = BUILD.reduce((a, [, , , h]) => a + h, 0);
+  const infra = RUN.reduce((a, [, , usd]) => a + usd, 0);
+  const k = (n: number) => `${Math.round(n / 1000)}k`;
+  return (
+    <section className="report-section">
+      <p className="kicker">Build it yourself</p>
+      <h2>What the same stack costs in-house</h2>
+      <p>
+        A team that wants this without OutLayer builds and runs every row of the table above. Our estimate for a first production version, with redundancy and updates, follows. The hours are ours; the server prices are list prices.
+      </p>
+      <div className="market">
+        <div className="market-inputs">
+          <label>
+            <span>Engineering rate, fully loaded</span>
+            <input type="range" min={50} max={200} step={5} value={rate} onChange={(e) => setRate(Number(e.target.value))} />
+            <b>€{rate}/h</b>
+          </label>
+          <label>
+            <span>Operations and updates, hours a month</span>
+            <input type="range" min={20} max={200} step={10} value={ops} onChange={(e) => setOps(Number(e.target.value))} />
+            <b>{ops} h</b>
+          </label>
+        </div>
+        <div className="market-out">
+          <div>
+            <span>Build: hours</span>
+            <b>
+              {low.toLocaleString('en')}–{high.toLocaleString('en')}
+            </b>
+          </div>
+          <div>
+            <span>Build: cost</span>
+            <b>
+              €{k(low * rate)}–{k(high * rate)}
+            </b>
+          </div>
+          <div>
+            <span>Run: per month</span>
+            <b>
+              ≈ ${k(infra)} + €{k(ops * rate)}
+            </b>
+          </div>
+        </div>
+      </div>
+      <div className="two">
+        <div className="wrap">
+          <table className="rules-table">
+            <thead>
+              <tr>
+                <th>To build</th>
+                <th className="num">Hours</th>
+              </tr>
+            </thead>
+            <tbody>
+              {BUILD.map(([part, what, l, h]) => (
+                <tr key={part}>
+                  <td>
+                    <strong>{part}</strong>
+                    <div className="cite">{what}</div>
+                  </td>
+                  <td className="num">
+                    {l}–{h}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="wrap">
+          <table className="rules-table">
+            <thead>
+              <tr>
+                <th>To run, two regions</th>
+                <th className="num">$ a month</th>
+              </tr>
+            </thead>
+            <tbody>
+              {RUN.map(([part, what, usd, href]) => (
+                <tr key={part}>
+                  <td>
+                    <strong>{part}</strong>
+                    <div className="cite">
+                      {what}
+                      {href && (
+                        <>
+                          {' '}
+                          <a href={href} target="_blank" rel="noreferrer">
+                            price ↗
+                          </a>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                  <td className="num">{usd.toLocaleString('en')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <ul className="plain">
+        <li>
+          <strong>Updates do not stop.</strong> Intel’s TCB recoveries, attestation collateral that expires, kernel and image updates, and NVIDIA’s attestation keys, which rotate every few days: the hours a month above are for that, plus being on call.
+        </li>
+        <li>
+          <strong>Not counted:</strong> an external security audit, recruiting, and the months before the first customer. A team of three needs roughly five to nine months for the hours above.
+        </li>
+        <li>
+          <strong>What money does not buy in-house:</strong> keys that nobody holds. An HSM is a vendor’s promise not to sign; here the keys come from confidential key derivation by the NEAR MPC network, the rules and the approved builds are on a public chain, and approvals are wallet signatures anyone can check, instead of the operator’s word.
+        </li>
+      </ul>
+      <p className="note">
+        Server prices: Azure DCesv5 pay-as-you-go, from about $140 a month for 4 vCPU (DC4es v5) and $560 for 16 vCPU (DC16es v5), so about $280 for the 8 vCPU size; AWS CloudHSM $1.60 per HSM-hour in us-east-1. Databases and monitoring are typical managed-service prices. Rates vary by region and contract.
+      </p>
+    </section>
+  );
+}
+
 export function WhyPage() {
   const [tab, setTab] = useState<'business' | 'engineering'>('business');
   useEffect(() => {
@@ -141,6 +288,8 @@ export function WhyPage() {
           </div>
         )}
       </section>
+
+      <BuildItYourself />
 
       <SeeNext current="why" />
       <Footer />
