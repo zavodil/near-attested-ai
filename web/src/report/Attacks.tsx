@@ -117,25 +117,6 @@ export function AttacksPage() {
         </p>
       </header>
 
-      <div className="attack-stats">
-        <div>
-          <b>7</b>
-          <span>attempts, each made for real</span>
-        </div>
-        <div>
-          <b>5</b>
-          <span>stopped before anything ran</span>
-        </div>
-        <div>
-          <b>2</b>
-          <span>got an answer the company’s check refuses</span>
-        </div>
-        <div>
-          <b>0</b>
-          <span>answers the company would accept</span>
-        </div>
-      </div>
-
       <section className="report-section">
         <p className="kicker">Four walls</p>
         <h2>What a request has to get past</h2>
